@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Mechanica — Projectile Motion Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand-block">
+        <p class="brand-mark">Project Mechanica</p>
+        <p class="brand-sub">Projectile Motion Engine</p>
+      </div>
+      <p class="header-hint">Drag the projectile along the path to inspect any instant.</p>
+    </header>
+
+    <main class="app-shell">
+      <section class="simulation-stage" aria-label="Projectile motion simulation">
+        <section class="parameter-rail" aria-label="Projectile parameters">
+          <div class="slider-control" data-control="velocity">
+            <div class="slider-meta">
+              <label for="velocitySlider">Initial velocity</label>
+              <span class="slider-value"><span id="velocityControlValue">42.00</span><span class="unit">m/s</span></span>
+            </div>
+            <input id="velocitySlider" type="range" min="5" max="60" step="1" value="42">
+          </div>
+
+          <div class="slider-control" data-control="angle">
+            <div class="slider-meta">
+              <label for="angleSlider">Launch angle</label>
+              <span class="slider-value"><span id="angleControlValue">42.00</span><span class="unit">&deg;</span></span>
+            </div>
+            <input id="angleSlider" type="range" min="0" max="90" step="1" value="42">
+          </div>
+
+          <div class="slider-control" data-control="gravity">
+            <div class="slider-meta">
+              <label for="gravitySlider">Gravity</label>
+              <span class="slider-value"><span id="gravityControlValue">9.81</span><span class="unit">m/s&sup2;</span></span>
+            </div>
+            <input id="gravitySlider" type="range" min="1" max="20" step="0.01" value="9.81">
+          </div>
+
+          <div class="gravity-presets" aria-label="Gravity presets">
+            <span class="preset-label" id="gravityModeValue">Earth gravity</span>
+            <div class="preset-group" role="group">
+              <button class="gravity-preset is-active" type="button" data-gravity="9.81">Earth</button>
+              <button class="gravity-preset" type="button" data-gravity="1.62">Moon</button>
+              <button class="gravity-preset" type="button" data-gravity="20">Jupiter</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="canvas-frame">
+          <canvas id="simulationCanvas" width="900" height="520">
+            Your browser does not support the canvas element.
+          </canvas>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="Simulation controls and data">
+        <section class="controls-panel">
+          <h2 class="panel-title">Controls</h2>
+          <div class="button-row">
+            <button id="launchButton" class="btn btn-primary" type="button">Launch</button>
+            <button id="replayButton" class="btn" type="button">Replay</button>
+            <button id="resetButton" class="btn" type="button">Reset</button>
+          </div>
+          <label class="display-option" for="velocityComponentsToggle">
+            <input id="velocityComponentsToggle" type="checkbox">
+            <span>Show velocity components (v<sub>x</sub>, v<sub>y</sub>)</span>
+          </label>
+        </section>
+
+        <section class="info-panel" aria-label="Live simulation values">
+          <h2 class="panel-title">Telemetry</h2>
+          <dl class="data-grid">
+            <div data-readout="time">
+              <dt>Time</dt>
+              <dd><span id="timeValue">0.00</span><span class="unit">s</span></dd>
+            </div>
+            <div data-readout="xPosition">
+              <dt>Horizontal position</dt>
+              <dd><span id="xPositionValue">0.00</span><span class="unit">m</span></dd>
+            </div>
+            <div data-readout="yPosition">
+              <dt>Vertical position</dt>
+              <dd><span id="yPositionValue">0.00</span><span class="unit">m</span></dd>
+            </div>
+            <div data-readout="xVelocity">
+              <dt>Horizontal velocity</dt>
+              <dd><span id="xVelocityValue">0.00</span><span class="unit">m/s</span></dd>
+            </div>
+            <div data-readout="yVelocity">
+              <dt>Vertical velocity</dt>
+              <dd><span id="yVelocityValue">0.00</span><span class="unit">m/s</span></dd>
+            </div>
+            <div data-readout="resultantVelocity">
+              <dt>Resultant velocity</dt>
+              <dd><span id="resultantVelocityValue">0.00</span><span class="unit">m/s</span></dd>
+            </div>
+            <div data-readout="gravity">
+              <dt>Gravity</dt>
+              <dd><span id="gravityValue">9.81</span><span class="unit">m/s&sup2;</span></dd>
+            </div>
+            <div data-readout="flightTime">
+              <dt>Time of flight</dt>
+              <dd><span id="flightTimeValue">0.00</span><span class="unit">s</span></dd>
+            </div>
+            <div data-readout="maximumHeight">
+              <dt>Maximum height</dt>
+              <dd><span id="maximumHeightValue">0.00</span><span class="unit">m</span></dd>
+            </div>
+            <div data-readout="range">
+              <dt>Range</dt>
+              <dd><span id="rangeValue">0.00</span><span class="unit">m</span></dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="insight-panel" aria-label="Physics insight">
+          <h2 class="panel-title">Mechanica Explains</h2>
+          <p id="physicsInsightText"></p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
