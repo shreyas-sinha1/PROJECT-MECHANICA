@@ -346,10 +346,10 @@ input[type="range"]::-moz-range-thumb {
   position: relative;
   flex: 1 1 auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   min-height: 0;
-  padding: var(--space-3);
+  padding: 0;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background:
@@ -358,23 +358,90 @@ input[type="range"]::-moz-range-thumb {
     var(--surface);
   background-size: 24px 24px, 24px 24px, auto;
   background-position: -1px -1px, -1px -1px, 0 0;
+  overflow: hidden;
 }
 
-#simulationCanvas {
+#simulationMount {
+  position: relative;
   display: block;
   width: 100%;
-  max-width: 100%;
-  height: auto;
-  aspect-ratio: 900 / 520;
+  height: 100%;
+  min-height: 320px;
   border: 1px solid var(--axis);
+  background: var(--surface-raised);
+  cursor: var(--cursor-navigator);
+  touch-action: none;
+  box-shadow: 0 1px 0 rgba(21, 24, 28, 0.04);
+  overflow: hidden;
+}
+
+#simulationMount canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#simulationMount.is-dragging {
+  cursor: var(--cursor-dragging);
+}
+
+#simulationMount.is-dragging canvas {
+  cursor: var(--cursor-dragging);
+}
+
+/* 2D canvas — hidden by default, shown when the 2D view toggle is active */
+#simulationCanvas {
+  display: none;
+  width: 100%;
+  height: 100%;
   background: var(--surface-raised);
   cursor: var(--cursor-navigator);
   touch-action: none;
   box-shadow: 0 1px 0 rgba(21, 24, 28, 0.04);
 }
 
-#simulationCanvas.is-dragging {
+/* Unified dragging cursor: triggered on the frame regardless of active view */
+.canvas-frame.is-dragging,
+.canvas-frame.is-dragging #simulationMount,
+.canvas-frame.is-dragging #simulationMount canvas,
+.canvas-frame.is-dragging #simulationCanvas {
   cursor: var(--cursor-dragging);
+}
+
+/* Hide orbit-hint pill when in 2D mode (canvas is visible) */
+#simulationCanvas:not([style*="display:none"]) ~ .orbit-hint,
+#simulationCanvas[style="display: block"] ~ .orbit-hint {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ——— Orbit hint badge ——— */
+
+.orbit-hint {
+  position: absolute;
+  bottom: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  background: rgba(247, 248, 250, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--ink-faint);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.hint-sep {
+  opacity: 0.45;
 }
 
 /* ——— Buttons ——— */
@@ -563,9 +630,9 @@ button[hidden] {
     flex: 1 1 0;
   }
 
-  #simulationCanvas {
-    width: min(100%, calc((100dvh - var(--header-h)) * 0.76 * 900 / 520));
-    max-height: calc((100dvh - var(--header-h)) * 0.76);
+  #simulationMount {
+    width: 100%;
+    height: 100%;
   }
 }
 
@@ -618,7 +685,8 @@ button[hidden] {
     align-items: stretch;
   }
 
-  #simulationCanvas {
+  #simulationMount {
+    min-height: 44vh;
     max-height: 52vh;
   }
 }

@@ -15,7 +15,7 @@
         <p class="brand-mark">Project Mechanica</p>
         <p class="brand-sub">Projectile Motion Engine</p>
       </div>
-      <p class="header-hint">Drag the projectile along the path to inspect any instant.</p>
+      <p class="header-hint">Drag the projectile to scrub. Orbit the scene with left-drag.</p>
     </header>
 
     <main class="app-shell">
@@ -56,9 +56,17 @@
         </section>
 
         <div class="canvas-frame">
-          <canvas id="simulationCanvas" width="900" height="520">
+          <div id="simulationMount" aria-label="3D simulation viewport"></div>
+          <canvas id="simulationCanvas" width="900" height="520" style="display:none" aria-label="2D simulation canvas">
             Your browser does not support the canvas element.
           </canvas>
+          <div class="orbit-hint" aria-hidden="true">
+            <span>Orbit: left-drag</span>
+            <span class="hint-sep">·</span>
+            <span>Zoom: scroll</span>
+            <span class="hint-sep">·</span>
+            <span>Pan: right-drag</span>
+          </div>
         </div>
       </section>
 
@@ -73,6 +81,10 @@
           <label class="display-option" for="velocityComponentsToggle">
             <input id="velocityComponentsToggle" type="checkbox">
             <span>Show velocity components (v<sub>x</sub>, v<sub>y</sub>)</span>
+          </label>
+          <label class="display-option" for="view2DToggle">
+            <input id="view2DToggle" type="checkbox">
+            <span>2D view</span>
           </label>
         </section>
 

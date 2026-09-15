@@ -1,6 +1,6 @@
 import { scene } from "../scene/scene.js";
 import { createEngine } from "../core/engine.js";
-import { createCanvasRenderer } from "../renderer/index.js";
+import { createThreeRenderer, createCanvasRenderer } from "../renderer/index.js";
 import "../ui/Styles/style.css";
 
 const GRAVITY_PRESETS = {
@@ -10,7 +10,9 @@ const GRAVITY_PRESETS = {
 };
 
 // DOM references
-const canvas = document.getElementById("simulationCanvas");
+const mountEl   = document.getElementById("simulationMount");
+const canvasEl  = document.getElementById("simulationCanvas");
+const canvasFrame = document.querySelector(".canvas-frame");
 const launchButton = document.getElementById("launchButton");
 const replayButton = document.getElementById("replayButton");
 const resetButton = document.getElementById("resetButton");
@@ -19,6 +21,7 @@ const angleSlider = document.getElementById("angleSlider");
 const gravitySlider = document.getElementById("gravitySlider");
 const gravityPresetButtons = document.querySelectorAll(".gravity-preset");
 const velocityComponentsToggle = document.getElementById("velocityComponentsToggle");
+const view2DToggle = document.getElementById("view2DToggle");
 
 const readoutElements = {
   time: document.getElementById("timeValue"),
@@ -42,7 +45,26 @@ const controlValueElements = {
 
 // Pipeline instantiation
 const engine = createEngine(scene);
-const renderer = createCanvasRenderer(canvas);
+
+// Both renderers are created once; the proxy delegates to whichever is active.
+const threeRenderer  = createThreeRenderer(mountEl);
+const canvas2DRenderer = createCanvasRenderer(canvasEl);
+
+let activeRenderer = threeRenderer;
+
+/**
+ * Thin proxy so the engine subscriber and all call-sites stay identical
+ * regardless of which renderer is currently active.
+ */
+const renderer = {
+  render:                   (state) => activeRenderer.render(state),
+  getPointerCanvasPosition: (event) => activeRenderer.getPointerCanvasPosition(event),
+  findNearestTrajectoryIndex: (pos, traj) => activeRenderer.findNearestTrajectoryIndex(pos, traj),
+  isPointerNearProjectile:  (pos, pt) => activeRenderer.isPointerNearProjectile(pos, pt),
+  // Optional on 2D renderer — guard before calling.
+  setIsDragging:  (v) => { if (activeRenderer.setIsDragging) activeRenderer.setIsDragging(v); },
+  reframeCamera:  (traj) => { if (activeRenderer.reframeCamera) activeRenderer.reframeCamera(traj); },
+};
 
 // UI update helpers
 function formatNumber(value) {
@@ -127,18 +149,42 @@ function handleVelocityComponentsToggle() {
   engine.setShowVelocityComponents(velocityComponentsToggle.checked);
 }
 
+function handle2DViewToggle() {
+  const is2D = view2DToggle.checked;
+
+  if (is2D) {
+    // Switch to 2D canvas renderer
+    mountEl.style.display  = "none";
+    canvasEl.style.display = "block";
+    activeRenderer = canvas2DRenderer;
+  } else {
+    // Switch back to 3D Three.js renderer
+    canvasEl.style.display = "none";
+    mountEl.style.display  = "";
+    activeRenderer = threeRenderer;
+    // Re-frame the 3D camera in case parameters changed while in 2D mode
+    renderer.reframeCamera(engine.getState().predictedTrajectory);
+  }
+
+  // Re-render immediately with the current state so there's no blank frame
+  renderer.render(engine.getState());
+}
+
 function handleParameterInputChange() {
   engine.setParameters({
     initialVelocity: Number(velocitySlider.value),
     launchAngleDegrees: Number(angleSlider.value),
     gravity: Number(gravitySlider.value)
   });
+  // Reframe the 3D camera to match the new trajectory extents
+  renderer.reframeCamera(engine.getState().predictedTrajectory);
 }
 
 function handleGravityPresetClick(event) {
   const selectedGravity = Number(event.currentTarget.dataset.gravity);
   gravitySlider.value = selectedGravity;
   engine.setParameters({ gravity: selectedGravity });
+  renderer.reframeCamera(engine.getState().predictedTrajectory);
 }
 
 // Canvas Drag Interaction Handlers
@@ -156,8 +202,8 @@ function inspectTrajectoryAtPointer(event) {
     return;
   }
 
-  const canvasPosition = renderer.getPointerCanvasPosition(event);
-  const trajectoryIndex = renderer.findNearestTrajectoryIndex(canvasPosition, trajectory);
+  const ndcPosition = renderer.getPointerCanvasPosition(event);
+  const trajectoryIndex = renderer.findNearestTrajectoryIndex(ndcPosition, trajectory);
   engine.scrubToTrajectoryIndex(trajectoryIndex);
 }
 
@@ -169,15 +215,16 @@ function handleCanvasPointerDown(event) {
     return;
   }
 
-  const canvasPosition = renderer.getPointerCanvasPosition(event);
+  const ndcPosition = renderer.getPointerCanvasPosition(event);
 
-  if (!renderer.isPointerNearProjectile(canvasPosition, state.currentPoint)) {
+  if (!renderer.isPointerNearProjectile(ndcPosition, state.currentPoint)) {
     return;
   }
 
   engine.setDragging(true);
-  canvas.classList.add("is-dragging");
-  canvas.setPointerCapture(event.pointerId);
+  renderer.setIsDragging(true);
+  canvasFrame.classList.add("is-dragging");
+  canvasFrame.setPointerCapture(event.pointerId);
   inspectTrajectoryAtPointer(event);
 }
 
@@ -196,9 +243,10 @@ function handleCanvasPointerUp(event) {
   }
 
   engine.setDragging(false);
-  canvas.classList.remove("is-dragging");
-  if (canvas.hasPointerCapture(event.pointerId)) {
-    canvas.releasePointerCapture(event.pointerId);
+  renderer.setIsDragging(false);
+  canvasFrame.classList.remove("is-dragging");
+  if (canvasFrame.hasPointerCapture(event.pointerId)) {
+    canvasFrame.releasePointerCapture(event.pointerId);
   }
 }
 
@@ -206,14 +254,16 @@ function bindControls() {
   launchButton.addEventListener("click", handleLaunchButtonClick);
   replayButton.addEventListener("click", handleReplayButtonClick);
   resetButton.addEventListener("click", handleResetButtonClick);
-  canvas.addEventListener("pointerdown", handleCanvasPointerDown);
-  canvas.addEventListener("pointermove", handleCanvasPointerMove);
-  canvas.addEventListener("pointerup", handleCanvasPointerUp);
-  canvas.addEventListener("pointercancel", handleCanvasPointerUp);
+  // Pointer events on the frame so they work in both 2D and 3D modes.
+  canvasFrame.addEventListener("pointerdown", handleCanvasPointerDown);
+  canvasFrame.addEventListener("pointermove", handleCanvasPointerMove);
+  canvasFrame.addEventListener("pointerup", handleCanvasPointerUp);
+  canvasFrame.addEventListener("pointercancel", handleCanvasPointerUp);
   velocitySlider.addEventListener("input", handleParameterInputChange);
   angleSlider.addEventListener("input", handleParameterInputChange);
   gravitySlider.addEventListener("input", handleParameterInputChange);
   velocityComponentsToggle.addEventListener("change", handleVelocityComponentsToggle);
+  view2DToggle.addEventListener("change", handle2DViewToggle);
   gravityPresetButtons.forEach((button) => {
     button.addEventListener("click", handleGravityPresetClick);
   });
