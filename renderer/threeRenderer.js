@@ -421,34 +421,33 @@ export function createThreeRenderer(mountEl) {
     const isShowingPredicted = state.activeTrajectory.length === 0;
 
     // ── Trajectory lines + dots ────────────────────────────────────────────
-    if (isShowingPredicted) {
-      lastTrajectoryVectors = trajectoryToVectors(state.predictedTrajectory);
-      predictedLine.updatePoints(lastTrajectoryVectors);
-      predictedLine.setVisible(true);
-      activeLine.updatePoints([]);
-      activeLine.setVisible(false);
+    // Always show the full predicted trajectory (dashed, muted) as a reference.
+    // During flight, overlay the active (solid) portion on top so the user
+    // sees both where the projectile has been and where it's going.
+    lastTrajectoryVectors = trajectoryToVectors(state.predictedTrajectory);
+    predictedLine.updatePoints(lastTrajectoryVectors);
+    predictedLine.setVisible(true);
 
-      // Dots: sampled predicted path (lighter, wider spacing)
-      const sampledPredicted = subsampleForDots(state.predictedTrajectory, 65);
-      predictedDots.updateVectors(trajectoryToVectors(sampledPredicted));
-      predictedDots.setVisible(true);
-      activeDots.setVisible(false);
-    } else {
-      // Show the active trajectory up to the current index
+    // Predicted dots: full path reference, always visible
+    const sampledPredicted = subsampleForDots(state.predictedTrajectory, 65);
+    predictedDots.updateVectors(trajectoryToVectors(sampledPredicted));
+    predictedDots.setVisible(true);
+
+    if (!isShowingPredicted) {
+      // Active solid line: traveled portion up to current index
       const visibleSlice  = state.activeTrajectory.slice(0, state.currentTrajectoryIndex + 1);
       const activeVectors = trajectoryToVectors(visibleSlice);
       activeLine.updatePoints(activeVectors);
       activeLine.setVisible(true);
 
-      lastTrajectoryVectors = trajectoryToVectors(state.activeTrajectory);
-      predictedLine.updatePoints([]);
-      predictedLine.setVisible(false);
-
-      // Dots: sampled from the VISIBLE slice so they appear progressively
+      // Active dots: progressively appear on the traveled portion
       const sampledActive = subsampleForDots(visibleSlice, 65);
       activeDots.updateVectors(trajectoryToVectors(sampledActive));
       activeDots.setVisible(true);
-      predictedDots.setVisible(false);
+    } else {
+      activeLine.updatePoints([]);
+      activeLine.setVisible(false);
+      activeDots.setVisible(false);
     }
 
     // ── Projectile ────────────────────────────────────────────────────────────

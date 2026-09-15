@@ -135,26 +135,15 @@ export function createGroundPlane() {
   slabMesh.receiveShadow = true;
   groundGroup.add(slabMesh);
 
-  // 2. High-contrast grid and division lines on the platform
+  // 2. Clean grid lines on the platform surface
   const gridGeo = new THREE.BufferGeometry();
   const gridMat = new THREE.LineBasicMaterial({
     color:       COLOURS.groundLine,
     transparent: true,
-    opacity:     0.65,
+    opacity:     0.55,
   });
   const gridLines = new THREE.LineSegments(gridGeo, gridMat);
   groundGroup.add(gridLines);
-
-  // 3. Subtle ambient room floor grid (strictly bounded around the platform)
-  const roomGeo = new THREE.BufferGeometry();
-  const roomMat = new THREE.LineBasicMaterial({
-    color:       0xd5dbe4,
-    transparent: true,
-    opacity:     0.45,
-  });
-  const roomGrid = new THREE.LineSegments(roomGeo, roomMat);
-  roomGrid.position.y = -0.04;
-  groundGroup.add(roomGrid);
 
   /**
    * Dynamically resizes the ground platform and its reference grid to fit
@@ -181,25 +170,21 @@ export function createGroundPlane() {
     slabMesh.scale.set(trackWidth, trackThickness, trackDepth);
     slabMesh.position.set(trackCenterX, -trackThickness * 0.5 - 0.015, 0);
 
-    // ── Grid lines on the platform ──────────────────────────────────────────
-    let step = 1;
+    // ── Grid lines on the platform surface only ─────────────────────────────
+    // Minimum step of 5 prevents dense clutter on short trajectories.
+    let step = 5;
     if (sX > 320)      step = 50;
     else if (sX > 160) step = 20;
     else if (sX > 60)  step = 10;
-    else if (sX > 22)  step = 5;
-    else if (sX > 7)   step = 2;
 
     const positions = [];
     const halfD = trackDepth * 0.5;
     const xStart = Math.ceil(trackMinX / step) * step;
     const xEnd   = Math.floor(trackMaxX / step) * step;
 
-    // Transverse lines across top surface and down front edge
+    // Transverse lines across top surface only (no front-face ticks)
     for (let x = xStart; x <= xEnd + 0.0001; x += step) {
-      // Across top surface:
       positions.push(x, 0, -halfD,  x, 0, halfD);
-      // Down front face:
-      positions.push(x, 0, halfD,   x, -trackThickness, halfD);
     }
 
     // Longitudinal lines on platform:
@@ -219,28 +204,6 @@ export function createGroundPlane() {
     positions.push(trackMaxX, 0, halfD, trackMaxX, -trackThickness, halfD);
 
     gridGeo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-
-    // ── Bounded room floor grid (subtle spatial reference around platform) ──
-    const roomPositions = [];
-    const rStep = step * 2;
-    const rMinX = trackMinX - sX * 0.20;
-    const rMaxX = trackMaxX + sX * 0.20;
-    const rMinZ = -halfD * 2.2;
-    const rMaxZ = halfD * 1.5;
-
-    const rxStart = Math.ceil(rMinX / rStep) * rStep;
-    const rxEnd   = Math.floor(rMaxX / rStep) * rStep;
-    for (let x = rxStart; x <= rxEnd + 0.0001; x += rStep) {
-      roomPositions.push(x, 0, rMinZ, x, 0, rMaxZ);
-    }
-
-    const rzStart = Math.ceil(rMinZ / rStep) * rStep;
-    const rzEnd   = Math.floor(rMaxZ / rStep) * rStep;
-    for (let z = rzStart; z <= rzEnd + 0.0001; z += rStep) {
-      roomPositions.push(rMinX, 0, z, rMaxX, 0, z);
-    }
-
-    roomGeo.setAttribute("position", new THREE.Float32BufferAttribute(roomPositions, 3));
   }
 
   return { groundPlane: groundGroup, updateBounds };
