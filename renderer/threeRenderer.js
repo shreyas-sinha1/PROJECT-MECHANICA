@@ -14,7 +14,8 @@
  */
 
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { OrbitControls }    from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import {
   createTrajectoryLine,
   createTrajectoryDots,
@@ -47,7 +48,7 @@ export function createThreeRenderer(mountEl) {
   const webgl = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   webgl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   webgl.shadowMap.enabled = true;
-  webgl.shadowMap.type = THREE.PCFSoftShadowMap;
+  webgl.shadowMap.type = THREE.PCFShadowMap;
   webgl.setClearColor(0xf7f8fa, 1);
 
   const domCanvas = webgl.domElement;
@@ -55,6 +56,28 @@ export function createThreeRenderer(mountEl) {
   domCanvas.style.width   = "100%";
   domCanvas.style.height  = "100%";
   mountEl.appendChild(domCanvas);
+
+  // ── CSS2D label renderer ────────────────────────────────────────────────────
+  // Overlays HTML elements (vector labels) on top of the WebGL canvas.
+  mountEl.style.position = 'relative';   // required for absolute child positioning
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.domElement.style.cssText = [
+    'position:absolute', 'top:0', 'left:0',
+    'width:100%',        'height:100%',
+    'pointer-events:none', 'overflow:visible',
+  ].join(';');
+  mountEl.appendChild(labelRenderer.domElement);
+
+  /** Creates a CSS2DObject from an HTML string and a CSS class name. */
+  function makeLabel(html, cssClass) {
+    const div = document.createElement('div');
+    div.className = `vector-label ${cssClass}`;
+    div.innerHTML = html;
+    const obj = new CSS2DObject(div);
+    obj.visible = false;
+    scene.add(obj);
+    return obj;
+  }
 
   // ── Scene ──────────────────────────────────────────────────────────────────
   const scene = new THREE.Scene();
@@ -84,19 +107,16 @@ export function createThreeRenderer(mountEl) {
     ONE:  THREE.TOUCH.ROTATE,
     TWO:  THREE.TOUCH.DOLLY_PAN,
   };
+  // Slightly higher rotate speed so the scene responds with less dragging effort.
+  controls.rotateSpeed = 1.5;
 
   // ── Lights ─────────────────────────────────────────────────────────────────
   const lights = createLights();
   lights.forEach((l) => scene.add(l));
 
-  // ── Ground ─────────────────────────────────────────────────────────────────
-  const { groundPlane } = createGroundPlane(400);
+  // ── Ground & Contained Platform ───────────────────────────────────────────
+  const { groundPlane, updateBounds: updateGroundBounds } = createGroundPlane();
   scene.add(groundPlane);
-
-  const gridHelper = new THREE.GridHelper(400, 80, COLOURS.groundLine, COLOURS.ground);
-  gridHelper.material.opacity = 0.45;
-  gridHelper.material.transparent = true;
-  scene.add(gridHelper);
 
   // ── Physics axes ───────────────────────────────────────────────────────────
   const { xArrow, yArrow, zArrow } = createPhysicsAxes(10);
@@ -131,6 +151,13 @@ export function createThreeRenderer(mountEl) {
     gravityArrow.arrow,
   );
 
+  // ── Vector labels (CSS2DObjects, positioned at arrow tips each frame) ───────
+  // Created after makeLabel is defined (above) and after scene exists.
+  const vLabel  = makeLabel('<i>v</i>',                    'vector-label--v');
+  const vxLabel = makeLabel('v<sub>x</sub>',               'vector-label--vx');
+  const vyLabel = makeLabel('v<sub>y</sub>',               'vector-label--vy');
+  const gLabel  = makeLabel('<i>g</i>',                    'vector-label--g');
+
   // ── Raycaster (for pointer interaction) ────────────────────────────────────
   const raycaster  = new THREE.Raycaster();
   const scrubPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); // XY plane at Z=0
@@ -146,7 +173,8 @@ export function createThreeRenderer(mountEl) {
     if (w === 0 || h === 0) return;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    webgl.setSize(w, h, false); // false → don't set style (CSS controls it)
+    webgl.setSize(w, h, false); // false → CSS controls style size
+    labelRenderer.setSize(w, h);
   }
 
   const resizeObserver = new ResizeObserver(syncSize);
@@ -160,6 +188,7 @@ export function createThreeRenderer(mountEl) {
     rafId = requestAnimationFrame(tick);
     controls.update();
     webgl.render(scene, camera);
+    labelRenderer.render(scene, camera);
   }
 
   tick();
@@ -178,6 +207,11 @@ export function createThreeRenderer(mountEl) {
    *     at which that sphere fits inside the frustum, with padding.
    *  4. Position the camera at a pleasant oblique angle from that centre.
    *  5. Rescale all visual objects to stay readable at the new scale.
+   */
+  /**
+   * Re-frames the camera so the complete trajectory is comfortably visible.
+   * Dynamically resizes the ground reference platform and rescales visual elements
+   * (projectile, axes, arrows, dots) to stay prominent and proportional.
    */
   function frameCameraToTrajectory(trajectory) {
     if (!trajectory || trajectory.length === 0) return;
@@ -200,70 +234,85 @@ export function createThreeRenderer(mountEl) {
     const spanX   = maxX - minX;
     const spanY   = maxY - minY;
     const centerX = (minX + maxX) * 0.5;
-    const centerY = (minY + maxY) * 0.5;
 
-    // ── 2. Bounding sphere radius (half-diagonal of the XY bounding rect) ────
-    const bboxDiagonal    = Math.sqrt(spanX * spanX + spanY * spanY);
-    const boundingRadius  = bboxDiagonal * 0.5;
+    // ── 2. Dynamically resize the physical ground platform ───────────────────
+    updateGroundBounds(minX, maxX, spanX, spanY);
 
-    // ── 3. Camera distance from FOV ──────────────────────────────────────────
-    // Vertical FOV in radians; camera.fov is already the vertical field of view.
-    const halfFovRad  = (camera.fov * Math.PI) / 180 * 0.5;
-    // Distance so the bounding sphere sits inside the frustum, plus padding.
-    const PADDING     = 1.45;
-    const camDistance = (boundingRadius / Math.sin(halfFovRad)) * PADDING;
+    // ── 3. Camera target: center X, elevated to frame ground in lower third ──
+    // targetY at ~28% of trajectory height places the ground platform neatly
+    // with comfortable bottom margin and the arc apex in the upper half.
+    const targetY = spanY * 0.28;
+    controls.target.set(centerX, targetY, 0);
 
-    // ── 4. Camera position: above and in front, looking at scene centre ───────
-    // Elevation = 30 % of distance above centre, Z-offset = 85 % of distance.
-    controls.target.set(centerX, centerY, 0);
-    camera.position.set(
-      centerX,
-      centerY + camDistance * 0.28,
-      camDistance * 0.85
-    );
-    camera.lookAt(centerX, centerY, 0);
+    // ── 4. Camera framing based on canvas aspect ratio and FOV ───────────────
+    const aspect = (domCanvas.clientWidth && domCanvas.clientHeight)
+      ? (domCanvas.clientWidth / domCanvas.clientHeight)
+      : 1.6;
+
+    const halfFovY = (camera.fov * Math.PI / 180) * 0.5;
+    const tanFovY  = Math.tan(halfFovY);
+    const tanFovX  = tanFovY * aspect;
+
+    // Trajectory bounds with compact padding
+    const padX        = Math.max(spanX * 0.08, 2.5);
+    const totalWidth  = spanX + 2 * padX;
+    const thickness   = Math.max(spanY * 0.05, 0.5);
+    const totalHeight = spanY + thickness + Math.max(spanY * 0.16, 1.2);
+
+    // Distance required so width and height comfortably fit the viewport
+    const distX = (totalWidth * 0.5) / tanFovX * 1.03;
+    const distY = (totalHeight * 0.5) / tanFovY * 1.15;
+    const camDistance = Math.max(distX, distY);
+
+    // Camera pitch angle: ~12.5 degrees (0.218 rad) above horizontal
+    // Gives clean 3D perspective of the contained platform without extreme distortion
+    const pitch = 0.218;
+    const camY = targetY + camDistance * Math.sin(pitch);
+    const camZ = camDistance * Math.cos(pitch);
+
+    camera.position.set(centerX, camY, camZ);
+    camera.lookAt(centerX, targetY, 0);
+
+    // OrbitControls bounds
+    controls.minDistance = Math.max(camDistance * 0.15, 2);
+    controls.maxDistance = camDistance * 5.0;
     controls.update();
 
-    // ── 5. Rescale scene objects ──────────────────────────────────────────────
-    // Projectile: visible as ~2 % of the bounding diagonal, clamped to a
-    // sensible visual minimum so it never disappears on large trajectories.
-    const BASE_SPHERE_RADIUS = 0.45;   // matches SphereGeometry arg in sceneObjects.js
-    const BASE_LAUNCH_RADIUS = 0.28;   // matches launch-point SphereGeometry arg
-    const projectileRadius   = Math.max(bboxDiagonal * 0.022, BASE_SPHERE_RADIUS);
-    const launchRadius       = projectileRadius * 0.6;
+    // ── 5. Rescale scene objects ─────────────────────────────────────────────
+    const bboxDiagonal       = Math.sqrt(spanX * spanX + spanY * spanY);
+    const BASE_SPHERE_RADIUS = 0.45;
+    const BASE_LAUNCH_RADIUS = 0.28;
+    const projectileRadius   = Math.max(bboxDiagonal * 0.013, BASE_SPHERE_RADIUS);
+    const launchRadius       = projectileRadius * 0.55;
     projectileMesh.scale.setScalar(projectileRadius / BASE_SPHERE_RADIUS);
     launchPointMesh.scale.setScalar(launchRadius    / BASE_LAUNCH_RADIUS);
 
-    // Axes: ~9 % of the longer spatial axis, minimum 4 units.
-    const axisLen   = Math.max(Math.max(spanX, spanY) * 0.09, 4);
-    const headLen   = axisLen * 0.14;
+    // Axes: ~8.5 % of the longer spatial axis, minimum 3.5 units.
+    const axisLen   = Math.max(Math.max(spanX, spanY) * 0.085, 3.5);
+    const headLen   = axisLen * 0.15;
     const headWidth = axisLen * 0.075;
     xArrow.setLength(axisLen,        headLen,        headWidth);
     yArrow.setLength(axisLen,        headLen,        headWidth);
-    zArrow.setLength(axisLen * 0.4,  headLen * 0.55, headWidth * 0.55);
+    zArrow.setLength(axisLen * 0.45, headLen * 0.6,  headWidth * 0.6);
 
-    // Vector arrows: scale so a typical max-velocity arrow spans ~18 % of diagonal.
-    // Reference: 42 m/s at VELOCITY_SCALE 0.18 → 7.56 units ≈ 4 % of 179 m diagonal.
-    // We use bboxDiagonal / referenceScene where reference scene diagonal ≈ 100 m.
-    const sceneScale  = bboxDiagonal / 100;
-    VELOCITY_SCALE = 0.18 * Math.max(sceneScale, 0.25);
-    GRAVITY_SCALE  = 0.32 * Math.max(sceneScale, 0.25);
+    // Vector arrows
+    const sceneScale = bboxDiagonal / 100;
+    VELOCITY_SCALE = 0.16 * Math.max(sceneScale, 0.25);
+    GRAVITY_SCALE  = 0.28 * Math.max(sceneScale, 0.25);
 
-    // Dot size: ~1.4 % of diagonal (same proportion as projectile but smaller).
-    // The minimum of 0.3 keeps dots visible on very short trajectories.
-    const dotSize          = Math.max(bboxDiagonal * 0.014, 0.3);
-    const predictedDotSize = dotSize * 0.78;
+    // Dots
+    const dotSize          = Math.max(bboxDiagonal * 0.009, 0.22);
+    const predictedDotSize = dotSize * 0.75;
     activeDots.setSize(dotSize);
     predictedDots.setSize(predictedDotSize);
 
-    // Predicted line: dash + gap proportional to scene so they're always visible.
-    // Target: ~20 dash-gap cycles across the trajectory for clear rhythm.
+    // Predicted line dash
     const cycleLen = bboxDiagonal / 22;
     predictedLine.setDashScale(cycleLen * 0.55, cycleLen * 0.45);
 
-    // Update fog density so it doesn't clip large scenes or look wrong on small ones.
+    // Subtle atmospheric fog so it never obscures the contained experiment
     if (scene.fog) {
-      scene.fog.density = 0.4 / Math.max(bboxDiagonal, 10);
+      scene.fog.density = 0.05 / Math.max(bboxDiagonal, 20);
     }
   }
 
@@ -295,16 +344,17 @@ export function createThreeRenderer(mountEl) {
   // ── Vector update helpers ──────────────────────────────────────────────────
 
   function updateVelocityVector(point) {
-    const origin = pointToVector3(point);
-    const vx = point.xVelocity;
-    const vy = point.yVelocity;
+    const origin    = pointToVector3(point);
     const resultant = point.resultantVelocity;
 
     if (resultant > 0.001) {
-      const dir = new THREE.Vector3(vx, vy, 0).normalize();
+      const dir = new THREE.Vector3(point.xVelocity, point.yVelocity, 0).normalize();
       velocityArrow.update(origin, dir, resultant * VELOCITY_SCALE);
+      vLabel.position.copy(velocityArrow.getTipPosition());
+      vLabel.visible = true;
     } else {
       velocityArrow.setVisible(false);
+      vLabel.visible = false;
     }
   }
 
@@ -315,23 +365,31 @@ export function createThreeRenderer(mountEl) {
     if (absVx > 0.001) {
       const dirX = new THREE.Vector3(Math.sign(point.xVelocity), 0, 0);
       velocityXArrow.update(origin, dirX, absVx * VELOCITY_SCALE);
+      vxLabel.position.copy(velocityXArrow.getTipPosition());
+      vxLabel.visible = true;
     } else {
       velocityXArrow.setVisible(false);
+      vxLabel.visible = false;
     }
 
     const absVy = Math.abs(point.yVelocity);
     if (absVy > 0.001) {
       const dirY = new THREE.Vector3(0, Math.sign(point.yVelocity), 0);
       velocityYArrow.update(origin, dirY, absVy * VELOCITY_SCALE);
+      vyLabel.position.copy(velocityYArrow.getTipPosition());
+      vyLabel.visible = true;
     } else {
       velocityYArrow.setVisible(false);
+      vyLabel.visible = false;
     }
   }
 
   function updateGravityVector(point) {
     const origin = pointToVector3(point);
-    const gLen = (point.gravity || 9.81) * GRAVITY_SCALE;
+    const gLen   = (point.gravity || 9.81) * GRAVITY_SCALE;
     gravityArrow.update(origin, new THREE.Vector3(0, -1, 0), gLen);
+    gLabel.position.copy(gravityArrow.getTipPosition());
+    gLabel.visible = true;
   }
 
   function hideVectors() {
@@ -339,6 +397,10 @@ export function createThreeRenderer(mountEl) {
     velocityXArrow.setVisible(false);
     velocityYArrow.setVisible(false);
     gravityArrow.setVisible(false);
+    vLabel.visible  = false;
+    vxLabel.visible = false;
+    vyLabel.visible = false;
+    gLabel.visible  = false;
   }
 
   // ── Main render function ───────────────────────────────────────────────────
@@ -402,6 +464,8 @@ export function createThreeRenderer(mountEl) {
       } else {
         velocityXArrow.setVisible(false);
         velocityYArrow.setVisible(false);
+        vxLabel.visible = false;
+        vyLabel.visible = false;
       }
       updateGravityVector(pt);
     } else {
@@ -547,8 +611,9 @@ export function createThreeRenderer(mountEl) {
     resizeObserver.disconnect();
     controls.dispose();
     webgl.dispose();
-    if (domCanvas.parentNode) {
-      domCanvas.parentNode.removeChild(domCanvas);
+    if (domCanvas.parentNode) domCanvas.parentNode.removeChild(domCanvas);
+    if (labelRenderer.domElement.parentNode) {
+      labelRenderer.domElement.parentNode.removeChild(labelRenderer.domElement);
     }
   }
 

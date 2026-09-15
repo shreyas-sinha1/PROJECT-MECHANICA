@@ -143,6 +143,7 @@ function handleReplayButtonClick() {
 function handleResetButtonClick() {
   engine.reset();
   syncControlsToState(engine.getState());
+  renderer.reframeCamera(engine.getState().predictedTrajectory);
 }
 
 function handleVelocityComponentsToggle() {

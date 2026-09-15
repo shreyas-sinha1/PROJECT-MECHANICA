@@ -2,19 +2,19 @@ import * as THREE from "three";
 
 // ─── Colour palette (mirrors the CSS custom properties) ───────────────────────
 export const COLOURS = {
-  trajectory:          0x2f6b72,
-  trajectoryPredict:   0x7a9aa0,
-  projectile:          0x15181c,
-  launchPoint:         0x2f6b72,
-  velocity:            0x2a5f9e,
-  velocityX:           0x5a8fc4,
-  velocityY:           0x3d7aa8,
-  gravity:             0x9a4034,
-  axisX:               0x2f6b72,   // teal  — horizontal (physics X)
-  axisY:               0x2a5f9e,   // blue  — vertical   (physics Y)
-  axisZ:               0x8a939e,   // muted — depth      (Z)
-  ground:              0xd5dae0,
-  groundLine:          0x2a3138,
+  trajectory:          0x2f6b72,   // teal
+  trajectoryPredict:   0x7a9aa0,   // muted teal
+  projectile:          0x0a0a0a,   // near black
+  launchPoint:         0x2f6b72,   // teal accent
+  velocity:            0x0d6fa8,   // medium blue (resultant v)
+  velocityX:           0x1565c0,   // blue  — horizontal component
+  velocityY:           0x2e7d32,   // green — vertical component (clearly distinct from vx)
+  gravity:             0xc62828,   // strong red
+  axisX:               0x2f6b72,   // teal  — horizontal axis
+  axisY:               0x2a5f9e,   // blue  — vertical axis
+  axisZ:               0x8a939e,   // muted — depth axis
+  ground:              0x1b2a38,   // dark charcoal
+  groundLine:          0x2c4460,   // subtle lighter lines for grid on dark ground
   ambientLight:        0xffffff,
   dirLight:            0xffffff,
 };
@@ -73,20 +73,15 @@ export function createTrajectoryLine(colour, dashed = false) {
  * @returns {{ mesh: THREE.Mesh, setPosition: (x:number, y:number, z:number) => void }}
  */
 export function createProjectileMesh() {
-  const geometry = new THREE.SphereGeometry(0.45, 24, 16);
+  // Larger segment count for a smooth silhouette at close zoom.
+  const geometry = new THREE.SphereGeometry(0.45, 32, 24);
   const material = new THREE.MeshStandardMaterial({
-    color: COLOURS.projectile,
-    roughness: 0.35,
-    metalness: 0.2,
+    color:      COLOURS.projectile,
+    roughness:  0.30,
+    metalness:  0.05,
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
-
-  // Outer glow ring (torus)
-  const ringGeo = new THREE.TorusGeometry(0.65, 0.06, 8, 32);
-  const ringMat = new THREE.MeshBasicMaterial({ color: COLOURS.trajectory, transparent: true, opacity: 0.55 });
-  const ring = new THREE.Mesh(ringGeo, ringMat);
-  mesh.add(ring);
 
   function setPosition(x, y, z = 0) {
     mesh.position.set(x, y, z);
@@ -115,29 +110,140 @@ export function createLaunchPointMesh() {
   return mesh;
 }
 
-// ─── Ground plane ─────────────────────────────────────────────────────────────
+// ─── Ground plane & contained platform ─────────────────────────────────────────
 
 /**
- * Creates a semi-transparent ground plane and a thick ground line.
- * @param {number} size - Extent in metres.
- * @returns {{ groundPlane: THREE.Mesh, groundLine: THREE.Line }}
+ * Creates a dynamically-sized contained physical experiment platform and reference grid.
+ * Sized tightly around the trajectory horizontal range and depth, avoiding an infinite open world.
+ *
+ * @returns {{
+ *   groundPlane: THREE.Group,
+ *   updateBounds: (minX: number, maxX: number, spanX: number, spanY: number) => void
+ * }}
  */
-export function createGroundPlane(size = 200) {
-  // Infinite-looking plane
-  const planeGeo = new THREE.PlaneGeometry(size, size);
-  const planeMat = new THREE.MeshStandardMaterial({
-    color: COLOURS.ground,
-    transparent: true,
-    opacity: 0.18,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const groundPlane = new THREE.Mesh(planeGeo, planeMat);
-  groundPlane.rotation.x = -Math.PI / 2;  // rotate to lie flat (XZ plane at Y=0)
-  groundPlane.position.set(0, 0, 0);
-  groundPlane.receiveShadow = true;
+export function createGroundPlane() {
+  const groundGroup = new THREE.Group();
 
-  return { groundPlane };
+  // 1. Solid physical slab platform (box mesh)
+  const slabGeo = new THREE.BoxGeometry(1, 1, 1);
+  const slabMat = new THREE.MeshStandardMaterial({
+    color:     COLOURS.ground,
+    roughness: 0.85,
+    metalness: 0.12,
+  });
+  const slabMesh = new THREE.Mesh(slabGeo, slabMat);
+  slabMesh.receiveShadow = true;
+  groundGroup.add(slabMesh);
+
+  // 2. High-contrast grid and division lines on the platform
+  const gridGeo = new THREE.BufferGeometry();
+  const gridMat = new THREE.LineBasicMaterial({
+    color:       COLOURS.groundLine,
+    transparent: true,
+    opacity:     0.65,
+  });
+  const gridLines = new THREE.LineSegments(gridGeo, gridMat);
+  groundGroup.add(gridLines);
+
+  // 3. Subtle ambient room floor grid (strictly bounded around the platform)
+  const roomGeo = new THREE.BufferGeometry();
+  const roomMat = new THREE.LineBasicMaterial({
+    color:       0xd5dbe4,
+    transparent: true,
+    opacity:     0.45,
+  });
+  const roomGrid = new THREE.LineSegments(roomGeo, roomMat);
+  roomGrid.position.y = -0.04;
+  groundGroup.add(roomGrid);
+
+  /**
+   * Dynamically resizes the ground platform and its reference grid to fit
+   * the trajectory horizontal range with reasonable, compact padding.
+   */
+  function updateBounds(minX, maxX, spanX, spanY) {
+    const sX = Math.max(spanX, 1);
+    const sY = Math.max(spanY, 1);
+
+    // Padding horizontally: ~8% beyond trajectory range, minimum 2.5m
+    const padX = Math.max(sX * 0.08, 2.5);
+    const trackMinX = minX - padX;
+    const trackMaxX = maxX + padX;
+    const trackWidth = trackMaxX - trackMinX;
+    const trackCenterX = (trackMinX + trackMaxX) * 0.5;
+
+    // Compact depth: physical lane/testbed proportion, not an infinite plane
+    const trackDepth = Math.max(sX * 0.22, sY * 0.45, 7.0);
+
+    // Slab thickness: gives a solid 3D platform with visible front edge
+    const trackThickness = Math.max(sY * 0.05, 0.5);
+
+    // Position slab: top surface sits at Y = -0.015
+    slabMesh.scale.set(trackWidth, trackThickness, trackDepth);
+    slabMesh.position.set(trackCenterX, -trackThickness * 0.5 - 0.015, 0);
+
+    // ── Grid lines on the platform ──────────────────────────────────────────
+    let step = 1;
+    if (sX > 320)      step = 50;
+    else if (sX > 160) step = 20;
+    else if (sX > 60)  step = 10;
+    else if (sX > 22)  step = 5;
+    else if (sX > 7)   step = 2;
+
+    const positions = [];
+    const halfD = trackDepth * 0.5;
+    const xStart = Math.ceil(trackMinX / step) * step;
+    const xEnd   = Math.floor(trackMaxX / step) * step;
+
+    // Transverse lines across top surface and down front edge
+    for (let x = xStart; x <= xEnd + 0.0001; x += step) {
+      // Across top surface:
+      positions.push(x, 0, -halfD,  x, 0, halfD);
+      // Down front face:
+      positions.push(x, 0, halfD,   x, -trackThickness, halfD);
+    }
+
+    // Longitudinal lines on platform:
+    // Centerline (Z=0, directly under the trajectory)
+    positions.push(trackMinX, 0, 0, trackMaxX, 0, 0);
+    // Back edge
+    positions.push(trackMinX, 0, -halfD, trackMaxX, 0, -halfD);
+    // Front top edge
+    positions.push(trackMinX, 0, halfD, trackMaxX, 0, halfD);
+    // Front bottom edge
+    positions.push(trackMinX, -trackThickness, halfD, trackMaxX, -trackThickness, halfD);
+    // Left edge
+    positions.push(trackMinX, 0, -halfD, trackMinX, 0, halfD);
+    positions.push(trackMinX, 0, halfD, trackMinX, -trackThickness, halfD);
+    // Right edge
+    positions.push(trackMaxX, 0, -halfD, trackMaxX, 0, halfD);
+    positions.push(trackMaxX, 0, halfD, trackMaxX, -trackThickness, halfD);
+
+    gridGeo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+
+    // ── Bounded room floor grid (subtle spatial reference around platform) ──
+    const roomPositions = [];
+    const rStep = step * 2;
+    const rMinX = trackMinX - sX * 0.20;
+    const rMaxX = trackMaxX + sX * 0.20;
+    const rMinZ = -halfD * 2.2;
+    const rMaxZ = halfD * 1.5;
+
+    const rxStart = Math.ceil(rMinX / rStep) * rStep;
+    const rxEnd   = Math.floor(rMaxX / rStep) * rStep;
+    for (let x = rxStart; x <= rxEnd + 0.0001; x += rStep) {
+      roomPositions.push(x, 0, rMinZ, x, 0, rMaxZ);
+    }
+
+    const rzStart = Math.ceil(rMinZ / rStep) * rStep;
+    const rzEnd   = Math.floor(rMaxZ / rStep) * rStep;
+    for (let z = rzStart; z <= rzEnd + 0.0001; z += rStep) {
+      roomPositions.push(rMinX, 0, z, rMaxX, 0, z);
+    }
+
+    roomGeo.setAttribute("position", new THREE.Float32BufferAttribute(roomPositions, 3));
+  }
+
+  return { groundPlane: groundGroup, updateBounds };
 }
 
 // ─── Physics axis arrows ──────────────────────────────────────────────────────
@@ -190,24 +296,43 @@ export function createVectorArrow(colour) {
     0.4, 0.25
   );
   arrow.visible = false;
-  arrow.line.material.linewidth = 2;
+  arrow.line.material.linewidth = 3;   // slightly thicker than before
+
+  // Internal state: lets getTipPosition() be called without extra book-keeping
+  // at the call site. Stored as plain fields rather than Vector3 to keep GC low.
+  const _origin = new THREE.Vector3();
+  const _dir    = new THREE.Vector3(1, 0, 0);
+  let   _length = 0;
 
   function update(origin, direction, length) {
     if (length < 0.001) {
       arrow.visible = false;
+      _length = 0;
       return;
     }
+    _origin.copy(origin);
+    _dir.copy(direction).normalize();
+    _length = length;
     arrow.position.copy(origin);
-    arrow.setDirection(direction.clone().normalize());
+    arrow.setDirection(_dir);
     arrow.setLength(length, Math.min(0.6, length * 0.18), Math.min(0.35, length * 0.1));
     arrow.visible = true;
   }
 
   function setVisible(v) {
     arrow.visible = v;
+    if (!v) _length = 0;
   }
 
-  return { arrow, update, setVisible };
+  /**
+   * Returns the world-space position at the arrow tip, offset a little beyond
+   * the arrowhead for label placement. `overshoot` is a fraction of the length.
+   */
+  function getTipPosition(overshoot = 1.14) {
+    return _origin.clone().addScaledVector(_dir, _length * overshoot);
+  }
+
+  return { arrow, update, setVisible, getTipPosition };
 }
 
 // ─── Lights ───────────────────────────────────────────────────────────────────
@@ -258,14 +383,48 @@ export function trajectoryToVectors(trajectory) {
   return trajectory.map(pointToVector3);
 }
 
-// ─── Trajectory dot markers (stroboscopic time-sample trail) ──────────────────
+// ─── Trajectory bead textures & helpers ────────────────────────────────────────
+
+let _circleTexture = null;
+function getCircleTexture() {
+  if (!_circleTexture && typeof document !== "undefined") {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    ctx.beginPath();
+    ctx.arc(32, 32, 28, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    _circleTexture = new THREE.CanvasTexture(canvas);
+  }
+  return _circleTexture;
+}
+
+let _ringTexture = null;
+function getRingTexture() {
+  if (!_ringTexture && typeof document !== "undefined") {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    ctx.beginPath();
+    ctx.arc(64, 64, 48, 0, Math.PI * 2);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+    _ringTexture = new THREE.CanvasTexture(canvas);
+  }
+  return _ringTexture;
+}
+
+// ─── Trajectory bead markers (equispaced along arc length) ─────────────────────
 
 /**
- * Creates a THREE.Points object that renders small spherical dots at
- * trajectory sample positions — giving the classic stroboscopic/time-step
- * physics-diagram look.
+ * Creates a THREE.Points object that renders smooth circular beads at
+ * trajectory sample positions.
  *
- * Uses sizeAttenuation so dots scale naturally as the camera zooms.
+ * Uses sizeAttenuation so beads scale naturally as the camera zooms.
  *
  * @param {number} colour   - Hex colour.
  * @param {number} opacity  - 0-1 opacity.
@@ -284,8 +443,10 @@ export function createTrajectoryDots(colour, opacity = 1.0) {
     color:           colour,
     size:            1.5,
     sizeAttenuation: true,    // size in world units — scales with distance
-    transparent:     opacity < 1.0,
+    map:             getCircleTexture(),
+    transparent:     true,
     opacity:         opacity,
+    alphaTest:       0.01,
     depthWrite:      false,
   });
 
@@ -311,12 +472,11 @@ export function createTrajectoryDots(colour, opacity = 1.0) {
     for (let i = 0; i < vectors.length; i++) {
       flat[i * 3]     = vectors[i].x;
       flat[i * 3 + 1] = vectors[i].y;
-      flat[i * 3 + 2] = vectors[i].z;
+      flat[i * 3 + 2] = vectors[i].z || 0;
     }
 
     if (vectors.length !== currentPointCount) {
       // Point count changed — dispose old buffer and assign a fresh attribute
-      // to avoid the 'Buffer size too small' Three.js warning.
       geometry.dispose();
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(flat, 3));
       currentPointCount = vectors.length;
@@ -338,4 +498,140 @@ export function createTrajectoryDots(colour, opacity = 1.0) {
   }
 
   return { points, updateVectors, setSize, setVisible };
+}
+
+// ─── Active bead highlight / outline reticle ──────────────────────────────────
+
+/**
+ * Creates a subtle concentric outline ring that highlights the bead
+ * corresponding to the projectile's current instant.
+ *
+ * @param {number} colour - Hex colour.
+ * @returns {{ points: THREE.Points, setPosition: (vec: THREE.Vector3) => void,
+ *            setSize: (s: number) => void, setVisible: (v: boolean) => void }}
+ */
+export function createBeadOutline(colour) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([0, 0, 0], 3)
+  );
+
+  const material = new THREE.PointsMaterial({
+    color:           colour,
+    size:            3.0,
+    sizeAttenuation: true,
+    map:             getRingTexture(),
+    transparent:     true,
+    opacity:         0.92,
+    alphaTest:       0.01,
+    depthWrite:      false,
+  });
+
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  points.visible = false;
+
+  function setPosition(vec) {
+    if (!vec) return;
+    const pos = geometry.getAttribute("position");
+    pos.array[0] = vec.x;
+    pos.array[1] = vec.y;
+    pos.array[2] = vec.z || 0;
+    pos.needsUpdate = true;
+    geometry.computeBoundingSphere();
+    points.visible = true;
+  }
+
+  function setSize(size) {
+    material.size = size;
+  }
+
+  function setVisible(v) {
+    points.visible = v;
+  }
+
+  return { points, setPosition, setSize, setVisible };
+}
+
+// ─── Arc-length equispaced bead calculation ───────────────────────────────────
+
+/**
+ * Computes beads evenly spaced by cumulative ARC LENGTH along the trajectory curve,
+ * completely independent of the projectile's changing speed.
+ *
+ * Each bead object contains:
+ * - position: THREE.Vector3 (interpolated 3D coordinate)
+ * - index: nearest/corresponding trajectory array index
+ * - time: corresponding physics time
+ *
+ * @param {Array<{xPosition: number, yPosition: number, time?: number}>} trajectory
+ * @param {number} [targetCount=50] - Number of beads across the full arc
+ * @returns {Array<{position: THREE.Vector3, index: number, time: number}>}
+ */
+export function computeEquispacedBeads(trajectory, targetCount = 50) {
+  if (!trajectory || trajectory.length === 0) return [];
+  if (trajectory.length === 1) {
+    return [{
+      position: pointToVector3(trajectory[0]),
+      index: 0,
+      time: trajectory[0].time || 0
+    }];
+  }
+
+  // 1. Compute cumulative arc length along trajectory points
+  const n = trajectory.length;
+  const cumDist = new Float64Array(n);
+  cumDist[0] = 0;
+  for (let i = 1; i < n; i++) {
+    const dx = trajectory[i].xPosition - trajectory[i - 1].xPosition;
+    const dy = trajectory[i].yPosition - trajectory[i - 1].yPosition;
+    cumDist[i] = cumDist[i - 1] + Math.sqrt(dx * dx + dy * dy);
+  }
+
+  const totalArcLength = cumDist[n - 1];
+  if (totalArcLength < 0.0001) {
+    return [{
+      position: pointToVector3(trajectory[0]),
+      index: 0,
+      time: trajectory[0].time || 0
+    }];
+  }
+
+  const count = Math.max(2, Math.min(targetCount, n));
+  const segmentLength = totalArcLength / (count - 1);
+  const beads = [];
+
+  let trajIdx = 0;
+  for (let b = 0; b < count; b++) {
+    const targetDist = b * segmentLength;
+
+    while (trajIdx < n - 2 && cumDist[trajIdx + 1] < targetDist) {
+      trajIdx++;
+    }
+
+    const d0 = cumDist[trajIdx];
+    const d1 = cumDist[trajIdx + 1];
+    const segSpan = d1 - d0;
+    const alpha = segSpan > 0.000001 ? (targetDist - d0) / segSpan : 0;
+
+    const p0 = trajectory[trajIdx];
+    const p1 = trajectory[trajIdx + 1];
+
+    const x = p0.xPosition + alpha * (p1.xPosition - p0.xPosition);
+    const y = p0.yPosition + alpha * (p1.yPosition - p0.yPosition);
+    const t0 = p0.time !== undefined ? p0.time : trajIdx;
+    const t1 = p1.time !== undefined ? p1.time : trajIdx + 1;
+    const time = t0 + alpha * (t1 - t0);
+
+    const correspIndex = alpha >= 0.5 ? Math.min(trajIdx + 1, n - 1) : trajIdx;
+
+    beads.push({
+      position: new THREE.Vector3(x, y, 0),
+      index: correspIndex,
+      time: time,
+    });
+  }
+
+  return beads;
 }
