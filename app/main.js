@@ -1,6 +1,6 @@
 import { scene } from "../scene/scene.js";
 import { createEngine } from "../core/engine.js";
-import { createCanvasRenderer } from "../renderer/index.js";
+import { createCanvasRenderer3D, createCanvasRenderer2D } from "../renderer/index.js";
 import "../ui/Styles/style.css";
 
 const GRAVITY_PRESETS = {
@@ -9,8 +9,7 @@ const GRAVITY_PRESETS = {
   Jupiter: 20
 };
 
-// DOM references
-const canvas = document.getElementById("simulationCanvas");
+let canvas = document.getElementById("simulationCanvas");
 const launchButton = document.getElementById("launchButton");
 const replayButton = document.getElementById("replayButton");
 const resetButton = document.getElementById("resetButton");
@@ -19,6 +18,8 @@ const angleSlider = document.getElementById("angleSlider");
 const gravitySlider = document.getElementById("gravitySlider");
 const gravityPresetButtons = document.querySelectorAll(".gravity-preset");
 const velocityComponentsToggle = document.getElementById("velocityComponentsToggle");
+const view2DToggle = document.getElementById("view2DToggle");
+const canvasFrame = document.querySelector(".canvas-frame");
 
 const readoutElements = {
   time: document.getElementById("timeValue"),
@@ -40,11 +41,10 @@ const controlValueElements = {
   gravityMode: document.getElementById("gravityModeValue")
 };
 
-// Pipeline instantiation
 const engine = createEngine(scene);
-const renderer = createCanvasRenderer(canvas);
+let renderer = createCanvasRenderer3D(canvas);
+let is2DView = false;
 
-// UI update helpers
 function formatNumber(value) {
   return typeof value === "number" ? value.toFixed(2) : "0.00";
 }
@@ -101,7 +101,6 @@ function syncControlsToState(state) {
   gravitySlider.value = state.parameters.gravity;
 }
 
-// Engine subscriber: syncs rendering and UI telemetry on every state tick
 engine.subscribe((state) => {
   renderer.render(state);
   updateReadouts(state);
@@ -109,7 +108,6 @@ engine.subscribe((state) => {
   updateButtonStates(state);
 });
 
-// UI Event Handlers
 function handleLaunchButtonClick() {
   engine.launch();
 }
@@ -127,6 +125,29 @@ function handleVelocityComponentsToggle() {
   engine.setShowVelocityComponents(velocityComponentsToggle.checked);
 }
 
+function handleView2DToggle() {
+  is2DView = view2DToggle.checked;
+
+  if (renderer && renderer.destroy) {
+    renderer.destroy();
+  }
+
+  const newCanvas = document.createElement("canvas");
+  newCanvas.id = "simulationCanvas";
+  newCanvas.width = 900;
+  newCanvas.height = 520;
+  newCanvas.textContent = "Your browser does not support the canvas element.";
+
+  canvasFrame.replaceChild(newCanvas, canvas);
+  canvas = newCanvas;
+
+  bindCanvasControls();
+
+  renderer = is2DView ? createCanvasRenderer2D(canvas) : createCanvasRenderer3D(canvas);
+
+  renderer.render(engine.getState());
+}
+
 function handleParameterInputChange() {
   engine.setParameters({
     initialVelocity: Number(velocitySlider.value),
@@ -141,7 +162,6 @@ function handleGravityPresetClick(event) {
   engine.setParameters({ gravity: selectedGravity });
 }
 
-// Canvas Drag Interaction Handlers
 function getInspectableTrajectory() {
   const state = engine.getState();
   if (state.activeTrajectory.length > 0) {
@@ -202,24 +222,30 @@ function handleCanvasPointerUp(event) {
   }
 }
 
-function bindControls() {
-  launchButton.addEventListener("click", handleLaunchButtonClick);
-  replayButton.addEventListener("click", handleReplayButtonClick);
-  resetButton.addEventListener("click", handleResetButtonClick);
+function bindCanvasControls() {
   canvas.addEventListener("pointerdown", handleCanvasPointerDown);
   canvas.addEventListener("pointermove", handleCanvasPointerMove);
   canvas.addEventListener("pointerup", handleCanvasPointerUp);
   canvas.addEventListener("pointercancel", handleCanvasPointerUp);
+}
+
+function bindControls() {
+  launchButton.addEventListener("click", handleLaunchButtonClick);
+  replayButton.addEventListener("click", handleReplayButtonClick);
+  resetButton.addEventListener("click", handleResetButtonClick);
   velocitySlider.addEventListener("input", handleParameterInputChange);
   angleSlider.addEventListener("input", handleParameterInputChange);
   gravitySlider.addEventListener("input", handleParameterInputChange);
   velocityComponentsToggle.addEventListener("change", handleVelocityComponentsToggle);
+  if (view2DToggle) {
+    view2DToggle.addEventListener("change", handleView2DToggle);
+  }
   gravityPresetButtons.forEach((button) => {
     button.addEventListener("click", handleGravityPresetClick);
   });
+  bindCanvasControls();
 }
 
-// Initial boot
 bindControls();
 syncControlsToState(engine.getState());
 engine.init();
