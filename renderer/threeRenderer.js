@@ -113,6 +113,16 @@ export function createThreeRenderer(mountEl) {
   // Slightly higher rotate speed so the scene responds with less dragging effort.
   controls.rotateSpeed = 1.5;
 
+  // Viewport navigation cursor feedback: active 3D navigation changes cursor to spatial pan/grab
+  domCanvas.style.cursor = "";
+  controls.addEventListener("start", () => {
+    mountEl.classList.add("is-navigating");
+  });
+  controls.addEventListener("end", () => {
+    mountEl.classList.remove("is-navigating");
+    domCanvas.style.cursor = "";
+  });
+
   // ── Lights ─────────────────────────────────────────────────────────────────
   const lights = createLights();
   lights.forEach((l) => scene.add(l));

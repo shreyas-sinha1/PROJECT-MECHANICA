@@ -231,10 +231,24 @@ function handleCanvasPointerDown(event) {
 
 function handleCanvasPointerMove(event) {
   const state = engine.getState();
-  if (!state.isDragging) {
+  if (state.isDragging) {
+    inspectTrajectoryAtPointer(event);
     return;
   }
-  inspectTrajectoryAtPointer(event);
+
+  // Hover affordance: if pointer is within grab proximity of projectile, show manipulation cursor
+  const trajectory = getInspectableTrajectory();
+  if (trajectory && trajectory.length > 0 && state.currentPoint) {
+    const ndcPosition = renderer.getPointerCanvasPosition(event);
+    const isNear = renderer.isPointerNearProjectile(ndcPosition, state.currentPoint);
+    canvasFrame.classList.toggle("is-hovering-projectile", isNear);
+  } else {
+    canvasFrame.classList.remove("is-hovering-projectile");
+  }
+}
+
+function handleCanvasPointerLeave() {
+  canvasFrame.classList.remove("is-hovering-projectile");
 }
 
 function handleCanvasPointerUp(event) {
@@ -260,11 +274,17 @@ function bindControls() {
   canvasFrame.addEventListener("pointermove", handleCanvasPointerMove);
   canvasFrame.addEventListener("pointerup", handleCanvasPointerUp);
   canvasFrame.addEventListener("pointercancel", handleCanvasPointerUp);
+  canvasFrame.addEventListener("pointerleave", handleCanvasPointerLeave);
   velocitySlider.addEventListener("input", handleParameterInputChange);
   angleSlider.addEventListener("input", handleParameterInputChange);
   gravitySlider.addEventListener("input", handleParameterInputChange);
   velocityComponentsToggle.addEventListener("change", handleVelocityComponentsToggle);
   view2DToggle.addEventListener("change", handle2DViewToggle);
+  const fullscreenLaunch = document.getElementById("fullscreenLaunch");
+  if (fullscreenLaunch) {
+    fullscreenLaunch.addEventListener("click", handleLaunchButtonClick);
+    fullscreenLaunch.addEventListener("pointerdown", (e) => e.stopPropagation());
+  }
   const fullscreenToggle = document.getElementById("fullscreenToggle");
   if (fullscreenToggle) {
     fullscreenToggle.addEventListener("click", () => {
@@ -274,7 +294,11 @@ function bindControls() {
         document.exitFullscreen().catch(() => {});
       }
     });
+    fullscreenToggle.addEventListener("pointerdown", (e) => e.stopPropagation());
   }
+  document.addEventListener("fullscreenchange", () => {
+    canvasFrame.classList.toggle("is-fullscreen", !!document.fullscreenElement);
+  });
   gravityPresetButtons.forEach((button) => {
     button.addEventListener("click", handleGravityPresetClick);
   });

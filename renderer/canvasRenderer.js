@@ -186,12 +186,12 @@ export function createCanvasRenderer(canvas) {
 
   function drawArrow(startX, startY, endX, endY, color, label, magnitudeText) {
     const angle = Math.atan2(endY - startY, endX - startX);
-    const arrowHeadLength = 9;
+    const arrowHeadLength = 11;
 
     context.beginPath();
     context.moveTo(startX, startY);
     context.lineTo(endX, endY);
-    context.lineWidth = 2;
+    context.lineWidth = 2.5;
     context.strokeStyle = color;
     context.stroke();
 

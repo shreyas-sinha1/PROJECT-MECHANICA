@@ -259,7 +259,14 @@ export function createVectorArrow(colour) {
     0.4, 0.25
   );
   arrow.visible = false;
-  arrow.line.material.linewidth = 3;   // slightly thicker than before
+
+  // Solid cylinder shaft so the vector has visible thickness (WebGL ignores Line linewidth)
+  const shaftGeo = new THREE.CylinderGeometry(0.20, 0.20, 1, 12);
+  shaftGeo.translate(0, 0.5, 0);
+  const shaftMesh = new THREE.Mesh(shaftGeo, new THREE.MeshBasicMaterial({ color: colour }));
+  arrow.remove(arrow.line);
+  arrow.line = shaftMesh;
+  arrow.add(shaftMesh);
 
   // Internal state: lets getTipPosition() be called without extra book-keeping
   // at the call site. Stored as plain fields rather than Vector3 to keep GC low.
@@ -278,7 +285,9 @@ export function createVectorArrow(colour) {
     _length = length;
     arrow.position.copy(origin);
     arrow.setDirection(_dir);
-    arrow.setLength(length, Math.min(1.2, length * 0.28), Math.min(0.7, length * 0.16));
+    const headLen = Math.min(1.3, Math.max(0.55, length * 0.28));
+    const headWidth = Math.min(0.85, Math.max(0.45, length * 0.18));
+    arrow.setLength(length, headLen, headWidth);
     arrow.visible = true;
   }
 

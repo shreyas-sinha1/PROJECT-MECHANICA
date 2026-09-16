@@ -359,6 +359,7 @@ input[type="range"]::-moz-range-thumb {
   background-size: 24px 24px, 24px 24px, auto;
   background-position: -1px -1px, -1px -1px, 0 0;
   overflow: hidden;
+  cursor: var(--cursor-navigator);
 }
 
 #simulationMount {
@@ -379,14 +380,7 @@ input[type="range"]::-moz-range-thumb {
   display: block;
   width: 100% !important;
   height: 100% !important;
-}
-
-#simulationMount.is-dragging {
-  cursor: var(--cursor-dragging);
-}
-
-#simulationMount.is-dragging canvas {
-  cursor: var(--cursor-dragging);
+  cursor: var(--cursor-navigator) !important;
 }
 
 /* 2D canvas — hidden by default, shown when the 2D view toggle is active */
@@ -395,17 +389,29 @@ input[type="range"]::-moz-range-thumb {
   width: 100%;
   height: 100%;
   background: var(--surface-raised);
-  cursor: var(--cursor-navigator);
+  cursor: var(--cursor-navigator) !important;
   touch-action: none;
   box-shadow: 0 1px 0 rgba(21, 24, 28, 0.04);
 }
 
-/* Unified dragging cursor: triggered on the frame regardless of active view */
+/* Unified navigation & dragging cursor states (both 2D and 3D) */
 .canvas-frame.is-dragging,
+.canvas-frame.is-navigating,
+.canvas-frame.is-hovering-projectile,
 .canvas-frame.is-dragging #simulationMount,
+.canvas-frame.is-navigating #simulationMount,
+.canvas-frame.is-hovering-projectile #simulationMount,
 .canvas-frame.is-dragging #simulationMount canvas,
-.canvas-frame.is-dragging #simulationCanvas {
-  cursor: var(--cursor-dragging);
+.canvas-frame.is-navigating #simulationMount canvas,
+.canvas-frame.is-hovering-projectile #simulationMount canvas,
+.canvas-frame.is-dragging #simulationCanvas,
+.canvas-frame.is-hovering-projectile #simulationCanvas,
+#simulationMount.is-navigating,
+#simulationMount.is-navigating canvas,
+#simulationMount.is-dragging,
+#simulationMount.is-dragging canvas,
+#simulationCanvas.is-dragging {
+  cursor: var(--cursor-dragging) !important;
 }
 
 /* Hide orbit-hint pill when in 2D mode (canvas is visible) */
@@ -473,6 +479,50 @@ input[type="range"]::-moz-range-thumb {
 
 .fullscreen-btn:active {
   transform: scale(0.95);
+}
+
+.fullscreen-launch-btn {
+  position: absolute;
+  bottom: var(--space-3);
+  right: 48px;
+  z-index: 25;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, background 0.15s ease;
+  user-select: none;
+}
+
+.fullscreen-launch-btn svg {
+  flex-shrink: 0;
+}
+
+.fullscreen-launch-btn:hover {
+  background: #25282c;
+  transform: scale(1.04);
+}
+
+.fullscreen-launch-btn:active {
+  transform: scale(0.96);
+}
+
+.canvas-frame:fullscreen .fullscreen-launch-btn,
+.canvas-frame:-webkit-full-screen .fullscreen-launch-btn,
+.canvas-frame.is-fullscreen .fullscreen-launch-btn {
+  display: flex;
 }
 
 .canvas-frame:fullscreen {
