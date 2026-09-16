@@ -278,7 +278,7 @@ export function createVectorArrow(colour) {
     _length = length;
     arrow.position.copy(origin);
     arrow.setDirection(_dir);
-    arrow.setLength(length, Math.min(0.6, length * 0.18), Math.min(0.35, length * 0.1));
+    arrow.setLength(length, Math.min(1.2, length * 0.28), Math.min(0.7, length * 0.16));
     arrow.visible = true;
   }
 

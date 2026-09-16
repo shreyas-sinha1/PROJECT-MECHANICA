@@ -444,6 +444,51 @@ input[type="range"]::-moz-range-thumb {
   opacity: 0.45;
 }
 
+/* ——— 3D Vector labels (CSS2DRenderer overlays) ——— */
+
+.vector-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  line-height: 1.15;
+  font-family: var(--font-sans);
+  transform: translate(6px, -50%);
+}
+
+.vector-label__name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.vector-label__value {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  opacity: 0.92;
+}
+
+/* Resultant velocity — medium blue */
+.vector-label--v  .vector-label__name  { color: #0d6fa8; }
+.vector-label--v  .vector-label__value { color: #3d8ec8; }
+
+/* Horizontal component — blue */
+.vector-label--vx .vector-label__name  { color: #1565c0; }
+.vector-label--vx .vector-label__value { color: #4b8cd4; }
+
+/* Vertical component — green */
+.vector-label--vy .vector-label__name  { color: #2e7d32; }
+.vector-label--vy .vector-label__value { color: #4a9a4e; }
+
+/* Gravity — red */
+.vector-label--g  .vector-label__name  { color: #c62828; }
+.vector-label--g  .vector-label__value { color: #d45050; }
+
 /* ——— Buttons ——— */
 
 .button-row {

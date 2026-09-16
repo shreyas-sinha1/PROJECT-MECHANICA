@@ -68,13 +68,16 @@ export function createThreeRenderer(mountEl) {
   ].join(';');
   mountEl.appendChild(labelRenderer.domElement);
 
-  /** Creates a CSS2DObject from an HTML string and a CSS class name. */
-  function makeLabel(html, cssClass) {
+  /** Creates a CSS2DObject with a name + live value display. */
+  function makeLabel(nameHtml, cssClass) {
     const div = document.createElement('div');
     div.className = `vector-label ${cssClass}`;
-    div.innerHTML = html;
+    div.innerHTML = `<span class="vector-label__name">${nameHtml}</span>`
+                  + `<span class="vector-label__value"></span>`;
     const obj = new CSS2DObject(div);
     obj.visible = false;
+    // Stash a ref to the value element for fast per-frame updates
+    obj.userData._valueEl = div.querySelector('.vector-label__value');
     scene.add(obj);
     return obj;
   }
@@ -297,8 +300,8 @@ export function createThreeRenderer(mountEl) {
 
     // Vector arrows
     const sceneScale = bboxDiagonal / 100;
-    VELOCITY_SCALE = 0.16 * Math.max(sceneScale, 0.25);
-    GRAVITY_SCALE  = 0.28 * Math.max(sceneScale, 0.25);
+    VELOCITY_SCALE = 0.30 * Math.max(sceneScale, 0.25);
+    GRAVITY_SCALE  = 0.50 * Math.max(sceneScale, 0.25);
 
     // Dots
     const dotSize          = Math.max(bboxDiagonal * 0.009, 0.22);
@@ -352,6 +355,7 @@ export function createThreeRenderer(mountEl) {
       velocityArrow.update(origin, dir, resultant * VELOCITY_SCALE);
       vLabel.position.copy(velocityArrow.getTipPosition());
       vLabel.visible = true;
+      vLabel.userData._valueEl.textContent = `${resultant.toFixed(2)} m/s`;
     } else {
       velocityArrow.setVisible(false);
       vLabel.visible = false;
@@ -367,6 +371,7 @@ export function createThreeRenderer(mountEl) {
       velocityXArrow.update(origin, dirX, absVx * VELOCITY_SCALE);
       vxLabel.position.copy(velocityXArrow.getTipPosition());
       vxLabel.visible = true;
+      vxLabel.userData._valueEl.textContent = `${absVx.toFixed(2)} m/s`;
     } else {
       velocityXArrow.setVisible(false);
       vxLabel.visible = false;
@@ -378,6 +383,7 @@ export function createThreeRenderer(mountEl) {
       velocityYArrow.update(origin, dirY, absVy * VELOCITY_SCALE);
       vyLabel.position.copy(velocityYArrow.getTipPosition());
       vyLabel.visible = true;
+      vyLabel.userData._valueEl.textContent = `${absVy.toFixed(2)} m/s`;
     } else {
       velocityYArrow.setVisible(false);
       vyLabel.visible = false;
@@ -386,10 +392,12 @@ export function createThreeRenderer(mountEl) {
 
   function updateGravityVector(point) {
     const origin = pointToVector3(point);
-    const gLen   = (point.gravity || 9.81) * GRAVITY_SCALE;
+    const gVal   = point.gravity || 9.81;
+    const gLen   = gVal * GRAVITY_SCALE;
     gravityArrow.update(origin, new THREE.Vector3(0, -1, 0), gLen);
     gLabel.position.copy(gravityArrow.getTipPosition());
     gLabel.visible = true;
+    gLabel.userData._valueEl.textContent = `${gVal.toFixed(2)} m/s²`;
   }
 
   function hideVectors() {
