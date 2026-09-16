@@ -444,6 +444,52 @@ input[type="range"]::-moz-range-thumb {
   opacity: 0.45;
 }
 
+/* ——— Fullscreen toggle button ——— */
+
+.fullscreen-btn {
+  position: absolute;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: #0a0a0a;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.fullscreen-btn:hover {
+  background: #25282c;
+  transform: scale(1.06);
+}
+
+.fullscreen-btn:active {
+  transform: scale(0.95);
+}
+
+.canvas-frame:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  border: none;
+  background: #f7f8fa;
+}
+
+.canvas-frame:fullscreen #simulationMount,
+.canvas-frame:fullscreen #simulationCanvas {
+  height: 100vh;
+  min-height: 100vh;
+  border: none;
+}
+
 /* ——— 3D Vector labels (CSS2DRenderer overlays) ——— */
 
 .vector-label {

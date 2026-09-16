@@ -265,6 +265,16 @@ function bindControls() {
   gravitySlider.addEventListener("input", handleParameterInputChange);
   velocityComponentsToggle.addEventListener("change", handleVelocityComponentsToggle);
   view2DToggle.addEventListener("change", handle2DViewToggle);
+  const fullscreenToggle = document.getElementById("fullscreenToggle");
+  if (fullscreenToggle) {
+    fullscreenToggle.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        canvasFrame.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+  }
   gravityPresetButtons.forEach((button) => {
     button.addEventListener("click", handleGravityPresetClick);
   });
