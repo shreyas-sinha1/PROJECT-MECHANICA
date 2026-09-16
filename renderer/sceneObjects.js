@@ -2,21 +2,21 @@ import * as THREE from "three";
 
 // ─── Colour palette (mirrors the CSS custom properties) ───────────────────────
 export const COLOURS = {
-  trajectory:          0x2f6b72,   // teal
-  trajectoryPredict:   0x7a9aa0,   // muted teal
-  projectile:          0x0a0a0a,   // near black
-  launchPoint:         0x2f6b72,   // teal accent
-  velocity:            0x0d6fa8,   // medium blue (resultant v)
-  velocityX:           0x1565c0,   // blue  — horizontal component
-  velocityY:           0x2e7d32,   // green — vertical component (clearly distinct from vx)
-  gravity:             0xc62828,   // strong red
-  axisX:               0x2f6b72,   // teal  — horizontal axis
-  axisY:               0x2a5f9e,   // blue  — vertical axis
-  axisZ:               0x8a939e,   // muted — depth axis
-  ground:              0x1b2a38,   // dark charcoal
-  groundLine:          0x2c4460,   // subtle lighter lines for grid on dark ground
-  ambientLight:        0xffffff,
-  dirLight:            0xffffff,
+  trajectory: 0x2f6b72,   // teal
+  trajectoryPredict: 0x7a9aa0,   // muted teal
+  projectile: 0x0a0a0a,   // near black
+  launchPoint: 0x2f6b72,   // teal accent
+  velocity: 0x0d6fa8,   // medium blue (resultant v)
+  velocityX: 0x1565c0,   // blue  — horizontal component
+  velocityY: 0x2e7d32,   // green — vertical component (clearly distinct from vx)
+  gravity: 0xc62828,   // strong red
+  axisX: 0x2f6b72,   // teal  — horizontal axis
+  axisY: 0x2a5f9e,   // blue  — vertical axis
+  axisZ: 0x8a939e,   // muted — depth axis
+  ground: 0x1b2a38,   // dark charcoal
+  groundLine: 0x2c4460,   // subtle lighter lines for grid on dark ground
+  ambientLight: 0xffffff,
+  dirLight: 0xffffff,
 };
 
 // ─── Trajectory line ──────────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ export function createTrajectoryLine(colour, dashed = false) {
   function setDashScale(dashSize, gapSize) {
     if (!dashed) return;
     material.dashSize = dashSize;
-    material.gapSize  = gapSize;
+    material.gapSize = gapSize;
     material.needsUpdate = true;
   }
 
@@ -76,9 +76,9 @@ export function createProjectileMesh() {
   // Larger segment count for a smooth silhouette at close zoom.
   const geometry = new THREE.SphereGeometry(0.45, 32, 24);
   const material = new THREE.MeshStandardMaterial({
-    color:      COLOURS.projectile,
-    roughness:  0.30,
-    metalness:  0.05,
+    color: COLOURS.projectile,
+    roughness: 0.30,
+    metalness: 0.05,
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
@@ -127,7 +127,7 @@ export function createGroundPlane() {
   // 1. Solid physical slab platform (box mesh)
   const slabGeo = new THREE.BoxGeometry(1, 1, 1);
   const slabMat = new THREE.MeshStandardMaterial({
-    color:     COLOURS.ground,
+    color: COLOURS.ground,
     roughness: 0.85,
     metalness: 0.12,
   });
@@ -138,9 +138,9 @@ export function createGroundPlane() {
   // 2. Clean grid lines on the platform surface
   const gridGeo = new THREE.BufferGeometry();
   const gridMat = new THREE.LineBasicMaterial({
-    color:       COLOURS.groundLine,
+    color: COLOURS.groundLine,
     transparent: true,
-    opacity:     0.55,
+    opacity: 0.55,
   });
   const gridLines = new THREE.LineSegments(gridGeo, gridMat);
   groundGroup.add(gridLines);
@@ -173,18 +173,18 @@ export function createGroundPlane() {
     // ── Grid lines on the platform surface only ─────────────────────────────
     // Minimum step of 5 prevents dense clutter on short trajectories.
     let step = 5;
-    if (sX > 320)      step = 50;
+    if (sX > 320) step = 50;
     else if (sX > 160) step = 20;
-    else if (sX > 60)  step = 10;
+    else if (sX > 60) step = 10;
 
     const positions = [];
     const halfD = trackDepth * 0.5;
     const xStart = Math.ceil(trackMinX / step) * step;
-    const xEnd   = Math.floor(trackMaxX / step) * step;
+    const xEnd = Math.floor(trackMaxX / step) * step;
 
     // Transverse lines across top surface only (no front-face ticks)
     for (let x = xStart; x <= xEnd + 0.0001; x += step) {
-      positions.push(x, 0, -halfD,  x, 0, halfD);
+      positions.push(x, 0, -halfD, x, 0, halfD);
     }
 
     // Longitudinal lines on platform:
@@ -264,8 +264,8 @@ export function createVectorArrow(colour) {
   // Internal state: lets getTipPosition() be called without extra book-keeping
   // at the call site. Stored as plain fields rather than Vector3 to keep GC low.
   const _origin = new THREE.Vector3();
-  const _dir    = new THREE.Vector3(1, 0, 0);
-  let   _length = 0;
+  const _dir = new THREE.Vector3(1, 0, 0);
+  let _length = 0;
 
   function update(origin, direction, length) {
     if (length < 0.001) {
@@ -310,13 +310,13 @@ export function createLights() {
   const key = new THREE.DirectionalLight(COLOURS.dirLight, 1.2);
   key.position.set(40, 80, 50);
   key.castShadow = true;
-  key.shadow.mapSize.width  = 1024;
+  key.shadow.mapSize.width = 1024;
   key.shadow.mapSize.height = 1024;
   key.shadow.camera.near = 0.5;
-  key.shadow.camera.far  = 500;
-  key.shadow.camera.left   = -100;
-  key.shadow.camera.right  =  100;
-  key.shadow.camera.top    =  100;
+  key.shadow.camera.far = 500;
+  key.shadow.camera.left = -100;
+  key.shadow.camera.right = 100;
+  key.shadow.camera.top = 100;
   key.shadow.camera.bottom = -100;
 
   const fill = new THREE.DirectionalLight(COLOURS.dirLight, 0.35);
@@ -403,14 +403,14 @@ export function createTrajectoryDots(colour, opacity = 1.0) {
   );
 
   const material = new THREE.PointsMaterial({
-    color:           colour,
-    size:            1.5,
+    color: colour,
+    size: 1.5,
     sizeAttenuation: true,    // size in world units — scales with distance
-    map:             getCircleTexture(),
-    transparent:     true,
-    opacity:         opacity,
-    alphaTest:       0.01,
-    depthWrite:      false,
+    map: getCircleTexture(),
+    transparent: true,
+    opacity: opacity,
+    alphaTest: 0.01,
+    depthWrite: false,
   });
 
   const points = new THREE.Points(geometry, material);
@@ -433,7 +433,7 @@ export function createTrajectoryDots(colour, opacity = 1.0) {
     // Flatten Vector3 array into a Float32Array for the buffer attribute
     const flat = new Float32Array(vectors.length * 3);
     for (let i = 0; i < vectors.length; i++) {
-      flat[i * 3]     = vectors[i].x;
+      flat[i * 3] = vectors[i].x;
       flat[i * 3 + 1] = vectors[i].y;
       flat[i * 3 + 2] = vectors[i].z || 0;
     }
@@ -481,14 +481,14 @@ export function createBeadOutline(colour) {
   );
 
   const material = new THREE.PointsMaterial({
-    color:           colour,
-    size:            3.0,
+    color: colour,
+    size: 3.0,
     sizeAttenuation: true,
-    map:             getRingTexture(),
-    transparent:     true,
-    opacity:         0.92,
-    alphaTest:       0.01,
-    depthWrite:      false,
+    map: getRingTexture(),
+    transparent: true,
+    opacity: 0.92,
+    alphaTest: 0.01,
+    depthWrite: false,
   });
 
   const points = new THREE.Points(geometry, material);

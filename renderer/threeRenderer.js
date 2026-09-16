@@ -14,7 +14,7 @@
  */
 
 import * as THREE from "three";
-import { OrbitControls }    from "three/addons/controls/OrbitControls.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import {
   createTrajectoryLine,
@@ -32,7 +32,7 @@ import {
 
 // Arrow scales — recomputed by frameCameraToTrajectory whenever the scene rescales.
 let VELOCITY_SCALE = 0.18;   // m/s → scene units for arrow length
-let GRAVITY_SCALE  = 0.32;   // m/s² → scene units for gravity arrow
+let GRAVITY_SCALE = 0.32;   // m/s² → scene units for gravity arrow
 
 // ─── Factory ─────────────────────────────────────────────────────────────────
 
@@ -53,8 +53,8 @@ export function createThreeRenderer(mountEl) {
 
   const domCanvas = webgl.domElement;
   domCanvas.style.display = "block";
-  domCanvas.style.width   = "100%";
-  domCanvas.style.height  = "100%";
+  domCanvas.style.width = "100%";
+  domCanvas.style.height = "100%";
   mountEl.appendChild(domCanvas);
 
   // ── CSS2D label renderer ────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export function createThreeRenderer(mountEl) {
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.domElement.style.cssText = [
     'position:absolute', 'top:0', 'left:0',
-    'width:100%',        'height:100%',
+    'width:100%', 'height:100%',
     'pointer-events:none', 'overflow:visible',
   ].join(';');
   mountEl.appendChild(labelRenderer.domElement);
@@ -73,7 +73,7 @@ export function createThreeRenderer(mountEl) {
     const div = document.createElement('div');
     div.className = `vector-label ${cssClass}`;
     div.innerHTML = `<span class="vector-label__name">${nameHtml}</span>`
-                  + `<span class="vector-label__value"></span>`;
+      + `<span class="vector-label__value"></span>`;
     const obj = new CSS2DObject(div);
     obj.visible = false;
     // Stash a ref to the value element for fast per-frame updates
@@ -98,17 +98,17 @@ export function createThreeRenderer(mountEl) {
   const controls = new OrbitControls(camera, domCanvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance   = 5;
-  controls.maxDistance   = 600;
+  controls.minDistance = 5;
+  controls.maxDistance = 600;
   controls.maxPolarAngle = Math.PI * 0.9;
-  controls.mouseButtons  = {
-    LEFT:   THREE.MOUSE.ROTATE,
+  controls.mouseButtons = {
+    LEFT: THREE.MOUSE.ROTATE,
     MIDDLE: THREE.MOUSE.DOLLY,
-    RIGHT:  THREE.MOUSE.PAN,
+    RIGHT: THREE.MOUSE.PAN,
   };
   controls.touches = {
-    ONE:  THREE.TOUCH.ROTATE,
-    TWO:  THREE.TOUCH.DOLLY_PAN,
+    ONE: THREE.TOUCH.ROTATE,
+    TWO: THREE.TOUCH.DOLLY_PAN,
   };
   // Slightly higher rotate speed so the scene responds with less dragging effort.
   controls.rotateSpeed = 1.5;
@@ -126,14 +126,14 @@ export function createThreeRenderer(mountEl) {
   scene.add(xArrow, yArrow, zArrow);
 
   // ── Trajectory lines ──────────────────────────────────────────────────────
-  const activeLine    = createTrajectoryLine(COLOURS.trajectory, false);
+  const activeLine = createTrajectoryLine(COLOURS.trajectory, false);
   const predictedLine = createTrajectoryLine(COLOURS.trajectoryPredict, true);
   scene.add(activeLine.line, predictedLine.line);
 
   // ── Trajectory dots (stroboscopic time-step markers) ─────────────────────
   // activeDots   — teal solid dots, shown during & after animation
   // predictedDots — muted dots, shown over the predicted (pre-launch) path
-  const activeDots    = createTrajectoryDots(COLOURS.trajectory,        1.0);
+  const activeDots = createTrajectoryDots(COLOURS.trajectory, 1.0);
   const predictedDots = createTrajectoryDots(COLOURS.trajectoryPredict, 0.65);
   scene.add(activeDots.points, predictedDots.points);
 
@@ -143,10 +143,10 @@ export function createThreeRenderer(mountEl) {
   scene.add(projectileMesh, launchPointMesh);
 
   // ── Vector arrows ──────────────────────────────────────────────────────────
-  const velocityArrow  = createVectorArrow(COLOURS.velocity);
+  const velocityArrow = createVectorArrow(COLOURS.velocity);
   const velocityXArrow = createVectorArrow(COLOURS.velocityX);
   const velocityYArrow = createVectorArrow(COLOURS.velocityY);
-  const gravityArrow   = createVectorArrow(COLOURS.gravity);
+  const gravityArrow = createVectorArrow(COLOURS.gravity);
   scene.add(
     velocityArrow.arrow,
     velocityXArrow.arrow,
@@ -156,13 +156,13 @@ export function createThreeRenderer(mountEl) {
 
   // ── Vector labels (CSS2DObjects, positioned at arrow tips each frame) ───────
   // Created after makeLabel is defined (above) and after scene exists.
-  const vLabel  = makeLabel('<i>v</i>',                    'vector-label--v');
-  const vxLabel = makeLabel('v<sub>x</sub>',               'vector-label--vx');
-  const vyLabel = makeLabel('v<sub>y</sub>',               'vector-label--vy');
-  const gLabel  = makeLabel('<i>g</i>',                    'vector-label--g');
+  const vLabel = makeLabel('<i>v</i>', 'vector-label--v');
+  const vxLabel = makeLabel('v<sub>x</sub>', 'vector-label--vx');
+  const vyLabel = makeLabel('v<sub>y</sub>', 'vector-label--vy');
+  const gLabel = makeLabel('<i>g</i>', 'vector-label--g');
 
   // ── Raycaster (for pointer interaction) ────────────────────────────────────
-  const raycaster  = new THREE.Raycaster();
+  const raycaster = new THREE.Raycaster();
   const scrubPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); // XY plane at Z=0
 
   // Internal state
@@ -234,8 +234,8 @@ export function createThreeRenderer(mountEl) {
     maxX = Math.max(maxX, 1);
     maxY = Math.max(maxY, 1);
 
-    const spanX   = maxX - minX;
-    const spanY   = maxY - minY;
+    const spanX = maxX - minX;
+    const spanY = maxY - minY;
     const centerX = (minX + maxX) * 0.5;
 
     // ── 2. Dynamically resize the physical ground platform ───────────────────
@@ -253,13 +253,13 @@ export function createThreeRenderer(mountEl) {
       : 1.6;
 
     const halfFovY = (camera.fov * Math.PI / 180) * 0.5;
-    const tanFovY  = Math.tan(halfFovY);
-    const tanFovX  = tanFovY * aspect;
+    const tanFovY = Math.tan(halfFovY);
+    const tanFovX = tanFovY * aspect;
 
     // Trajectory bounds with compact padding
-    const padX        = Math.max(spanX * 0.08, 2.5);
-    const totalWidth  = spanX + 2 * padX;
-    const thickness   = Math.max(spanY * 0.05, 0.5);
+    const padX = Math.max(spanX * 0.08, 2.5);
+    const totalWidth = spanX + 2 * padX;
+    const thickness = Math.max(spanY * 0.05, 0.5);
     const totalHeight = spanY + thickness + Math.max(spanY * 0.16, 1.2);
 
     // Distance required so width and height comfortably fit the viewport
@@ -282,29 +282,29 @@ export function createThreeRenderer(mountEl) {
     controls.update();
 
     // ── 5. Rescale scene objects ─────────────────────────────────────────────
-    const bboxDiagonal       = Math.sqrt(spanX * spanX + spanY * spanY);
+    const bboxDiagonal = Math.sqrt(spanX * spanX + spanY * spanY);
     const BASE_SPHERE_RADIUS = 0.45;
     const BASE_LAUNCH_RADIUS = 0.28;
-    const projectileRadius   = Math.max(bboxDiagonal * 0.013, BASE_SPHERE_RADIUS);
-    const launchRadius       = projectileRadius * 0.55;
+    const projectileRadius = Math.max(bboxDiagonal * 0.013, BASE_SPHERE_RADIUS);
+    const launchRadius = projectileRadius * 0.55;
     projectileMesh.scale.setScalar(projectileRadius / BASE_SPHERE_RADIUS);
-    launchPointMesh.scale.setScalar(launchRadius    / BASE_LAUNCH_RADIUS);
+    launchPointMesh.scale.setScalar(launchRadius / BASE_LAUNCH_RADIUS);
 
     // Axes: ~8.5 % of the longer spatial axis, minimum 3.5 units.
-    const axisLen   = Math.max(Math.max(spanX, spanY) * 0.085, 3.5);
-    const headLen   = axisLen * 0.15;
+    const axisLen = Math.max(Math.max(spanX, spanY) * 0.085, 3.5);
+    const headLen = axisLen * 0.15;
     const headWidth = axisLen * 0.075;
-    xArrow.setLength(axisLen,        headLen,        headWidth);
-    yArrow.setLength(axisLen,        headLen,        headWidth);
-    zArrow.setLength(axisLen * 0.45, headLen * 0.6,  headWidth * 0.6);
+    xArrow.setLength(axisLen, headLen, headWidth);
+    yArrow.setLength(axisLen, headLen, headWidth);
+    zArrow.setLength(axisLen * 0.45, headLen * 0.6, headWidth * 0.6);
 
     // Vector arrows
     const sceneScale = bboxDiagonal / 100;
     VELOCITY_SCALE = 0.30 * Math.max(sceneScale, 0.25);
-    GRAVITY_SCALE  = 0.50 * Math.max(sceneScale, 0.25);
+    GRAVITY_SCALE = 0.50 * Math.max(sceneScale, 0.25);
 
     // Dots
-    const dotSize          = Math.max(bboxDiagonal * 0.009, 0.22);
+    const dotSize = Math.max(bboxDiagonal * 0.009, 0.22);
     const predictedDotSize = dotSize * 0.75;
     activeDots.setSize(dotSize);
     predictedDots.setSize(predictedDotSize);
@@ -336,7 +336,7 @@ export function createThreeRenderer(mountEl) {
   function subsampleForDots(trajectory, targetCount = 65) {
     if (!trajectory || trajectory.length === 0) return [];
     if (trajectory.length <= targetCount) return trajectory;
-    const step   = (trajectory.length - 1) / (targetCount - 1);
+    const step = (trajectory.length - 1) / (targetCount - 1);
     const result = [];
     for (let i = 0; i < targetCount; i++) {
       result.push(trajectory[Math.round(i * step)]);
@@ -347,7 +347,7 @@ export function createThreeRenderer(mountEl) {
   // ── Vector update helpers ──────────────────────────────────────────────────
 
   function updateVelocityVector(point) {
-    const origin    = pointToVector3(point);
+    const origin = pointToVector3(point);
     const resultant = point.resultantVelocity;
 
     if (resultant > 0.001) {
@@ -392,8 +392,8 @@ export function createThreeRenderer(mountEl) {
 
   function updateGravityVector(point) {
     const origin = pointToVector3(point);
-    const gVal   = point.gravity || 9.81;
-    const gLen   = gVal * GRAVITY_SCALE;
+    const gVal = point.gravity || 9.81;
+    const gLen = gVal * GRAVITY_SCALE;
     gravityArrow.update(origin, new THREE.Vector3(0, -1, 0), gLen);
     gLabel.position.copy(gravityArrow.getTipPosition());
     gLabel.visible = true;
@@ -405,10 +405,10 @@ export function createThreeRenderer(mountEl) {
     velocityXArrow.setVisible(false);
     velocityYArrow.setVisible(false);
     gravityArrow.setVisible(false);
-    vLabel.visible  = false;
+    vLabel.visible = false;
     vxLabel.visible = false;
     vyLabel.visible = false;
-    gLabel.visible  = false;
+    gLabel.visible = false;
   }
 
   // ── Main render function ───────────────────────────────────────────────────
@@ -443,7 +443,7 @@ export function createThreeRenderer(mountEl) {
 
     if (!isShowingPredicted) {
       // Active solid line: traveled portion up to current index
-      const visibleSlice  = state.activeTrajectory.slice(0, state.currentTrajectoryIndex + 1);
+      const visibleSlice = state.activeTrajectory.slice(0, state.currentTrajectoryIndex + 1);
       const activeVectors = trajectoryToVectors(visibleSlice);
       activeLine.updatePoints(activeVectors);
       activeLine.setVisible(true);
@@ -492,8 +492,8 @@ export function createThreeRenderer(mountEl) {
    */
   function getPointerCanvasPosition(event) {
     const rect = domCanvas.getBoundingClientRect();
-    const x =  ((event.clientX - rect.left) / rect.width)  * 2 - 1;
-    const y = -((event.clientY - rect.top)  / rect.height) * 2 + 1;
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     return { x, y };
   }
 
@@ -543,10 +543,10 @@ export function createThreeRenderer(mountEl) {
 
     trajectory.forEach((pt, index) => {
       const world = pointToVector3(pt);
-      const clip  = world.clone().project(camera);
+      const clip = world.clone().project(camera);
       const dx = clip.x - pointer.x;
       const dy = clip.y - pointer.y;
-      const d  = dx * dx + dy * dy;
+      const d = dx * dx + dy * dy;
       if (d < nearestDist) {
         nearestDist = d;
         nearest = index;
@@ -570,14 +570,14 @@ export function createThreeRenderer(mountEl) {
     if (!currentPoint) return false;
 
     const world = pointToVector3(currentPoint);
-    const clip  = world.clone().project(camera);
+    const clip = world.clone().project(camera);
 
     // Convert NDC→pixel for both pointer and projectile, compare pixel dist
     const w = domCanvas.clientWidth;
     const h = domCanvas.clientHeight;
 
-    const pointerPx  = { x: (ndc.x  + 1) * 0.5 * w, y: (-ndc.y  + 1) * 0.5 * h };
-    const projectPx  = { x: (clip.x + 1) * 0.5 * w, y: (-clip.y + 1) * 0.5 * h };
+    const pointerPx = { x: (ndc.x + 1) * 0.5 * w, y: (-ndc.y + 1) * 0.5 * h };
+    const projectPx = { x: (clip.x + 1) * 0.5 * w, y: (-clip.y + 1) * 0.5 * h };
 
     const dx = pointerPx.x - projectPx.x;
     const dy = pointerPx.y - projectPx.y;

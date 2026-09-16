@@ -138,11 +138,11 @@ body {
   background: var(--surface-raised);
 }
 
-.side-panel > section {
+.side-panel>section {
   padding: var(--space-5);
 }
 
-.side-panel > section + section {
+.side-panel>section+section {
   border-top: 1px solid var(--rule);
 }
 
@@ -409,8 +409,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Hide orbit-hint pill when in 2D mode (canvas is visible) */
-#simulationCanvas:not([style*="display:none"]) ~ .orbit-hint,
-#simulationCanvas[style="display: block"] ~ .orbit-hint {
+#simulationCanvas:not([style*="display:none"])~.orbit-hint,
+#simulationCanvas[style="display: block"]~.orbit-hint {
   opacity: 0;
   pointer-events: none;
 }
@@ -474,20 +474,40 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* Resultant velocity — medium blue */
-.vector-label--v  .vector-label__name  { color: #0d6fa8; }
-.vector-label--v  .vector-label__value { color: #3d8ec8; }
+.vector-label--v .vector-label__name {
+  color: #0d6fa8;
+}
+
+.vector-label--v .vector-label__value {
+  color: #3d8ec8;
+}
 
 /* Horizontal component — blue */
-.vector-label--vx .vector-label__name  { color: #1565c0; }
-.vector-label--vx .vector-label__value { color: #4b8cd4; }
+.vector-label--vx .vector-label__name {
+  color: #1565c0;
+}
+
+.vector-label--vx .vector-label__value {
+  color: #4b8cd4;
+}
 
 /* Vertical component — green */
-.vector-label--vy .vector-label__name  { color: #2e7d32; }
-.vector-label--vy .vector-label__value { color: #4a9a4e; }
+.vector-label--vy .vector-label__name {
+  color: #2e7d32;
+}
+
+.vector-label--vy .vector-label__value {
+  color: #4a9a4e;
+}
 
 /* Gravity — red */
-.vector-label--g  .vector-label__name  { color: #c62828; }
-.vector-label--g  .vector-label__value { color: #d45050; }
+.vector-label--g .vector-label__name {
+  color: #c62828;
+}
+
+.vector-label--g .vector-label__value {
+  color: #d45050;
+}
 
 /* ——— Buttons ——— */
 
@@ -756,6 +776,7 @@ button[hidden] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
