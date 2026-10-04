@@ -3,151 +3,672 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project Mechanica — Projectile Motion Engine</title>
+  <title>Mechanica — Stop imagining physics. Start seeing it.</title>
+  <meta name="description" content="Mechanica turns physics problems into interactive visual simulations you can actually understand. Build intuition, not just memory.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./landing.css">
 </head>
 <body>
-  <div class="app">
-    <header class="app-header">
-      <div class="brand-block">
-        <p class="brand-mark">Project Mechanica</p>
-        <p class="brand-sub">Projectile Motion Engine</p>
+
+  <!-- Subtle grid background -->
+  <div class="grid-bg" aria-hidden="true"></div>
+
+  <!-- ================================================================
+       NAVIGATION
+       ================================================================ -->
+  <nav class="nav" id="mainNav" role="navigation" aria-label="Main navigation">
+    <div class="nav__inner">
+      <a href="/" class="nav__brand" aria-label="Mechanica Home">
+        <div class="nav__logo" aria-hidden="true">M</div>
+        <span class="nav__wordmark">Mechanica</span>
+      </a>
+
+      <ul class="nav__links" id="navLinks">
+        <li><a href="#product">Product</a></li>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#explore">Explore</a></li>
+        <li><a href="#for-students">For Students</a></li>
+        <li><a href="#for-teachers">For Teachers</a></li>
+      </ul>
+
+      <div class="nav__actions">
+        <a href="#" class="nav__sign-in">Sign In</a>
+        <a href="./sim.html" class="btn-cta">Try Mechanica Free →</a>
       </div>
-      <p class="header-hint">Drag the projectile to scrub. Orbit the scene with left-drag.</p>
-    </header>
 
-    <main class="app-shell">
-      <section class="simulation-stage" aria-label="Projectile motion simulation">
-        <section class="parameter-rail" aria-label="Projectile parameters">
-          <div class="slider-control" data-control="velocity">
-            <div class="slider-meta">
-              <label for="velocitySlider">Initial velocity</label>
-              <span class="slider-value"><span id="velocityControlValue">42.00</span><span class="unit">m/s</span></span>
+      <button class="nav__mobile-toggle" id="mobileToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================================================================
+       HERO
+       ================================================================ -->
+  <section class="hero" id="hero">
+    <div class="hero__stars" id="heroStars" aria-hidden="true">
+      <canvas id="starfieldCanvas"></canvas>
+    </div>
+
+    <div class="hero__content">
+      <h1 class="hero__headline">
+        <span>Stop imagining physics.</span>
+        <span class="gradient-text">Start seeing it.</span>
+      </h1>
+      <p class="hero__sub">
+        Turn physics problems into interactive simulations you can actually understand.
+      </p>
+      <div class="hero__ctas">
+        <a href="./sim.html" class="btn-cta btn-cta--large">Try Mechanica Free →</a>
+        <button class="btn-cta btn-cta--large btn-cta--outline" id="watchDemoBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Watch Demo
+        </button>
+      </div>
+      <p class="hero__meta">
+        No signup required <span>·</span> Free to use <span>·</span> Built for students and teachers
+      </p>
+    </div>
+
+    <!-- Hero Simulation Visual -->
+    <div class="hero__sim">
+      <div class="sim-frame">
+        <div class="sim-header">
+          <div class="sim-header__left">
+            <div class="sim-header__dots">
+              <div class="sim-header__dot"></div>
+              <div class="sim-header__dot"></div>
+              <div class="sim-header__dot"></div>
             </div>
-            <input id="velocitySlider" type="range" min="5" max="60" step="1" value="42">
+            <span class="sim-header__title">Projectile Motion — Mechanica Engine</span>
           </div>
-
-          <div class="slider-control" data-control="angle">
-            <div class="slider-meta">
-              <label for="angleSlider">Launch angle</label>
-              <span class="slider-value"><span id="angleControlValue">42.00</span><span class="unit">&deg;</span></span>
+          <div class="sim-header__controls">
+            <button class="sim-control-btn" id="heroPlayBtn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Play
+            </button>
+            <button class="sim-control-btn" id="heroReplayBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              Replay
+            </button>
+            <button class="sim-control-btn">1×</button>
+          </div>
+        </div>
+        <div class="sim-canvas-area">
+          <canvas id="heroSimCanvas" aria-label="Projectile motion simulation preview"></canvas>
+          <div class="sim-telemetry" id="heroTelemetry">
+            <div class="sim-telemetry__title">Telemetry</div>
+            <div class="sim-telemetry__row">
+              <span class="sim-telemetry__label">Initial velocity</span>
+              <span><span class="sim-telemetry__value" id="telV0">42.0</span><span class="sim-telemetry__unit">m/s</span></span>
             </div>
-            <input id="angleSlider" type="range" min="0" max="90" step="1" value="42">
-          </div>
-
-          <div class="slider-control" data-control="gravity">
-            <div class="slider-meta">
-              <label for="gravitySlider">Gravity</label>
-              <span class="slider-value"><span id="gravityControlValue">9.81</span><span class="unit">m/s&sup2;</span></span>
+            <div class="sim-telemetry__row">
+              <span class="sim-telemetry__label">Launch angle</span>
+              <span><span class="sim-telemetry__value" id="telAngle">42.0</span><span class="sim-telemetry__unit">°</span></span>
             </div>
-            <input id="gravitySlider" type="range" min="1" max="20" step="0.01" value="9.81">
-          </div>
-
-          <div class="gravity-presets" aria-label="Gravity presets">
-            <span class="preset-label" id="gravityModeValue">Earth gravity</span>
-            <div class="preset-group" role="group">
-              <button class="gravity-preset is-active" type="button" data-gravity="9.81">Earth</button>
-              <button class="gravity-preset" type="button" data-gravity="1.62">Moon</button>
-              <button class="gravity-preset" type="button" data-gravity="20">Jupiter</button>
+            <div class="sim-telemetry__row">
+              <span class="sim-telemetry__label">Gravity</span>
+              <span><span class="sim-telemetry__value" id="telG">9.81</span><span class="sim-telemetry__unit">m/s²</span></span>
+            </div>
+            <div class="sim-telemetry__row">
+              <span class="sim-telemetry__label">Time</span>
+              <span><span class="sim-telemetry__value" id="telTime">0.00</span><span class="sim-telemetry__unit">s</span></span>
+            </div>
+            <div class="sim-telemetry__row">
+              <span class="sim-telemetry__label">Range</span>
+              <span><span class="sim-telemetry__value" id="telRange">0.00</span><span class="sim-telemetry__unit">m</span></span>
+            </div>
+            <div class="sim-telemetry__row">
+              <span class="sim-telemetry__label">Max height</span>
+              <span><span class="sim-telemetry__value" id="telMaxH">0.00</span><span class="sim-telemetry__unit">m</span></span>
             </div>
           </div>
-        </section>
+        </div>
+      </div>
+    </div>
+  </section>
 
-        <div class="canvas-frame">
-          <div id="simulationMount" aria-label="3D simulation viewport"></div>
-          <canvas id="simulationCanvas" width="900" height="520" style="display:none" aria-label="2D simulation canvas">
-            Your browser does not support the canvas element.
-          </canvas>
-          <div class="orbit-hint" aria-hidden="true">
-            <span>Orbit: left-drag</span>
-            <span class="hint-sep">·</span>
-            <span>Zoom: scroll</span>
-            <span class="hint-sep">·</span>
-            <span>Pan: right-drag</span>
-          </div>
-          <button id="fullscreenLaunch" class="fullscreen-launch-btn" type="button" aria-label="Launch Simulation" title="Launch Simulation">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-              <path d="M5 3l14 9-14 9V3z"/>
+  <!-- ================================================================
+       PROBLEM SECTION
+       ================================================================ -->
+  <section class="problems" id="product">
+    <div class="container animate-on-scroll">
+      <span class="section-label">The Problem</span>
+      <h2 class="section-headline">
+        Physics is difficult<br>when you can't <span class="gradient-text">see it.</span>
+      </h2>
+
+      <div class="problems__grid">
+        <div class="problem-card">
+          <div class="problem-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="7" y1="8" x2="17" y2="8"/>
+              <line x1="7" y1="12" x2="13" y2="12"/>
+              <circle cx="15" cy="16" r="2"/>
             </svg>
-            <span>Launch</span>
-          </button>
-          <button id="fullscreenToggle" class="fullscreen-btn" type="button" aria-label="Toggle Fullscreen" title="Toggle Fullscreen">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </div>
+          <h3 class="problem-card__title">Static diagrams</h3>
+          <p class="problem-card__desc">Textbooks show frozen images of dynamic events.</p>
+        </div>
+
+        <div class="problem-card">
+          <div class="problem-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 20h16"/>
+              <path d="M4 20V10l4-6h8l4 6v10"/>
+              <path d="M9 14h6"/>
+              <path d="M12 11v6"/>
             </svg>
+          </div>
+          <h3 class="problem-card__title">Equations without intuition</h3>
+          <p class="problem-card__desc">Formulas don't show what's actually happening.</p>
+        </div>
+
+        <div class="problem-card">
+          <div class="problem-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a4 4 0 0 1 4 4c0 2-2 3-2 6H10c0-3-2-4-2-6a4 4 0 0 1 4-4z"/>
+              <line x1="10" y1="16" x2="14" y2="16"/>
+              <line x1="10" y1="19" x2="14" y2="19"/>
+              <line x1="11" y1="22" x2="13" y2="22"/>
+            </svg>
+          </div>
+          <h3 class="problem-card__title">Memorization over understanding</h3>
+          <p class="problem-card__desc">Students often memorize instead of building intuition.</p>
+        </div>
+
+        <div class="problem-card">
+          <div class="problem-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <h3 class="problem-card__title">Time-consuming explanations</h3>
+          <p class="problem-card__desc">Teachers spend time drawing what a simulation could show instantly.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       PRODUCT DEMO SECTION
+       ================================================================ -->
+  <section class="demo" id="demo">
+    <div class="container container--wide animate-on-scroll">
+      <span class="section-label">See It In Action</span>
+      <h2 class="section-headline">
+        From question<br>to <span class="gradient-text">physics in seconds.</span>
+      </h2>
+      <p class="section-sub">
+        Enter a problem, adjust parameters, and watch the physics unfold in real time.
+      </p>
+
+      <div class="demo__panel">
+        <!-- Input Panel -->
+        <div class="demo__inputs">
+          <div class="demo__input-group">
+            <span class="demo__input-label">Initial Velocity (v₀)</span>
+            <div class="demo__input-value"><span id="demoV0Val">42</span><span class="demo__input-unit">m/s</span></div>
+            <input type="range" class="demo__input-slider" id="demoV0Slider" min="5" max="80" step="1" value="42">
+          </div>
+
+          <div class="demo__input-group">
+            <span class="demo__input-label">Launch Angle (θ)</span>
+            <div class="demo__input-value"><span id="demoAngleVal">42</span><span class="demo__input-unit">°</span></div>
+            <input type="range" class="demo__input-slider" id="demoAngleSlider" min="5" max="85" step="1" value="42">
+          </div>
+
+          <div class="demo__input-group">
+            <span class="demo__input-label">Gravity (g)</span>
+            <div class="demo__input-value"><span id="demoGravVal">9.81</span><span class="demo__input-unit">m/s²</span></div>
+            <input type="range" class="demo__input-slider" id="demoGravSlider" min="1" max="25" step="0.01" value="9.81">
+          </div>
+
+          <div class="demo__input-group">
+            <span class="demo__input-label">Launch Height (h)</span>
+            <div class="demo__input-value"><span id="demoHeightVal">0</span><span class="demo__input-unit">m</span></div>
+            <input type="range" class="demo__input-slider" id="demoHeightSlider" min="0" max="50" step="1" value="0">
+          </div>
+
+          <button class="demo__run-btn" id="demoRunBtn">
+            Run Simulation →
           </button>
         </div>
-      </section>
 
-      <aside class="side-panel" aria-label="Simulation controls and data">
-        <section class="controls-panel">
-          <h2 class="panel-title">Controls</h2>
-          <div class="button-row">
-            <button id="launchButton" class="btn btn-primary" type="button">Launch</button>
-            <button id="replayButton" class="btn" type="button">Replay</button>
-            <button id="resetButton" class="btn" type="button">Reset</button>
+        <!-- Simulation Panel -->
+        <div class="demo__simulation">
+          <div class="demo__sim-tabs">
+            <div class="demo__sim-tab-group">
+              <button class="demo__sim-tab is-active">Simulation</button>
+              <button class="demo__sim-tab">Graphs</button>
+              <button class="demo__sim-tab">Equations</button>
+            </div>
+            <div class="demo__sim-toggle">
+              <button class="demo__sim-toggle-btn is-active">2D</button>
+              <button class="demo__sim-toggle-btn">3D</button>
+            </div>
           </div>
-          <label class="display-option" for="velocityComponentsToggle">
-            <input id="velocityComponentsToggle" type="checkbox">
-            <span>Show velocity components (v<sub>x</sub>, v<sub>y</sub>)</span>
-          </label>
-          <label class="display-option" for="view2DToggle">
-            <input id="view2DToggle" type="checkbox">
-            <span>2D view</span>
-          </label>
-        </section>
+          <div class="demo__sim-canvas">
+            <canvas id="demoSimCanvas" aria-label="Interactive projectile motion demo"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-        <section class="info-panel" aria-label="Live simulation values">
-          <h2 class="panel-title">Telemetry</h2>
-          <dl class="data-grid">
-            <div data-readout="time">
-              <dt>Time</dt>
-              <dd><span id="timeValue">0.00</span><span class="unit">s</span></dd>
-            </div>
-            <div data-readout="xPosition">
-              <dt>Horizontal position</dt>
-              <dd><span id="xPositionValue">0.00</span><span class="unit">m</span></dd>
-            </div>
-            <div data-readout="yPosition">
-              <dt>Vertical position</dt>
-              <dd><span id="yPositionValue">0.00</span><span class="unit">m</span></dd>
-            </div>
-            <div data-readout="xVelocity">
-              <dt>Horizontal velocity</dt>
-              <dd><span id="xVelocityValue">0.00</span><span class="unit">m/s</span></dd>
-            </div>
-            <div data-readout="yVelocity">
-              <dt>Vertical velocity</dt>
-              <dd><span id="yVelocityValue">0.00</span><span class="unit">m/s</span></dd>
-            </div>
-            <div data-readout="resultantVelocity">
-              <dt>Resultant velocity</dt>
-              <dd><span id="resultantVelocityValue">0.00</span><span class="unit">m/s</span></dd>
-            </div>
-            <div data-readout="gravity">
-              <dt>Gravity</dt>
-              <dd><span id="gravityValue">9.81</span><span class="unit">m/s&sup2;</span></dd>
-            </div>
-            <div data-readout="flightTime">
-              <dt>Time of flight</dt>
-              <dd><span id="flightTimeValue">0.00</span><span class="unit">s</span></dd>
-            </div>
-            <div data-readout="maximumHeight">
-              <dt>Maximum height</dt>
-              <dd><span id="maximumHeightValue">0.00</span><span class="unit">m</span></dd>
-            </div>
-            <div data-readout="range">
-              <dt>Range</dt>
-              <dd><span id="rangeValue">0.00</span><span class="unit">m</span></dd>
-            </div>
-          </dl>
-        </section>
-      </aside>
-    </main>
-  </div>
+  <!-- ================================================================
+       HOW IT WORKS
+       ================================================================ -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container animate-on-scroll">
+      <span class="section-label">How It Works</span>
+      <h2 class="section-headline">
+        From problem to <span class="gradient-text">physics in seconds.</span>
+      </h2>
 
-  <script type="module" src="./main.js"></script>
+      <div class="hiw__steps">
+        <div class="hiw__step">
+          <div class="hiw__step-number">01</div>
+          <h3 class="hiw__step-title">Enter the problem</h3>
+          <p class="hiw__step-desc">Paste or input the physics problem or adjust its parameters.</p>
+        </div>
+
+        <div class="hiw__step">
+          <div class="hiw__step-number">02</div>
+          <h3 class="hiw__step-title">Mechanica understands it</h3>
+          <p class="hiw__step-desc">The system extracts the relevant physical concepts and parameters.</p>
+        </div>
+
+        <div class="hiw__step">
+          <div class="hiw__step-number">03</div>
+          <h3 class="hiw__step-title">Watch it happen</h3>
+          <p class="hiw__step-desc">The physics engine generates an interactive visualization.</p>
+        </div>
+
+        <div class="hiw__step">
+          <div class="hiw__step-number">04</div>
+          <h3 class="hiw__step-title">Explore</h3>
+          <p class="hiw__step-desc">Change variables and see how the system responds.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       EXPLORE PHYSICS
+       ================================================================ -->
+  <section class="explore" id="explore">
+    <div class="container animate-on-scroll">
+      <span class="section-label">Explore</span>
+      <h2 class="section-headline">Explore <span class="gradient-text">physics concepts</span></h2>
+      <p class="section-sub">
+        Interactive simulations across core physics topics. Start with projectile motion — more coming soon.
+      </p>
+
+      <div class="explore__grid">
+        <!-- Active Card -->
+        <a href="./sim.html" class="explore-card explore-card--active">
+          <div class="explore-card__status explore-card__status--active">Available now</div>
+          <h3 class="explore-card__title">Projectile Motion</h3>
+          <p class="explore-card__desc">Launch angle, velocity, gravity and trajectory.</p>
+          <span class="explore-card__link">Launch simulation →</span>
+        </a>
+
+        <!-- Coming Soon Cards -->
+        <div class="explore-card explore-card--coming-soon">
+          <div class="explore-card__status explore-card__status--soon">Coming Soon</div>
+          <h3 class="explore-card__title">Newton's Laws</h3>
+          <p class="explore-card__desc">Explore forces, acceleration and motion.</p>
+        </div>
+
+        <div class="explore-card explore-card--coming-soon">
+          <div class="explore-card__status explore-card__status--soon">Coming Soon</div>
+          <h3 class="explore-card__title">Energy & Momentum</h3>
+          <p class="explore-card__desc">See conservation laws play out.</p>
+        </div>
+
+        <div class="explore-card explore-card--coming-soon">
+          <div class="explore-card__status explore-card__status--soon">Coming Soon</div>
+          <h3 class="explore-card__title">Circular Motion</h3>
+          <p class="explore-card__desc">Visualize velocity, acceleration and forces.</p>
+        </div>
+      </div>
+
+      <div class="explore__more">
+        <p>More simulations are being built.</p>
+        <div class="explore__more-topics">
+          <span class="explore__topic-tag">Work & Energy</span>
+          <span class="explore__topic-tag">Gravitation</span>
+          <span class="explore__topic-tag">SHM</span>
+          <span class="explore__topic-tag">Waves</span>
+          <span class="explore__topic-tag">Electrostatics</span>
+          <span class="explore__topic-tag">Current Electricity</span>
+          <span class="explore__topic-tag">Ray Optics</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       FOR STUDENTS
+       ================================================================ -->
+  <section class="audience-section" id="for-students">
+    <div class="container animate-on-scroll">
+      <div class="audience__inner">
+        <div class="audience__content">
+          <span class="section-label">For Students</span>
+          <h2 class="section-headline">Learn physics by <span class="gradient-text">experimenting.</span></h2>
+          <p class="audience__copy">
+            Change the angle.<br>
+            Change the velocity.<br>
+            Change the mass.<br>
+            See what happens.<br><br>
+            <strong>Build intuition, not just memory.</strong>
+          </p>
+          <a href="./sim.html" class="btn-cta btn-cta--large">Start Exploring →</a>
+        </div>
+        <div class="audience__visual" id="studentVisual">
+          <canvas id="studentCanvas" aria-label="Abstract physics visualization"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       FOR TEACHERS
+       ================================================================ -->
+  <section class="audience-section" id="for-teachers">
+    <div class="container animate-on-scroll">
+      <div class="audience__inner audience__inner--reverse">
+        <div class="audience__content">
+          <span class="section-label">For Teachers</span>
+          <h2 class="section-headline">Make difficult concepts <span class="gradient-text">visible.</span></h2>
+          <p class="audience__copy">
+            Demonstrate concepts instantly.<br>
+            Create visual explanations.<br>
+            Show cause and effect.<br>
+            Make abstract problems tangible.
+          </p>
+          <a href="./sim.html" class="btn-cta btn-cta--large">Explore for Teachers →</a>
+        </div>
+        <div class="audience__visual" id="teacherVisual">
+          <canvas id="teacherCanvas" aria-label="Classroom simulation environment"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       TESTIMONIALS
+       ================================================================ -->
+  <section class="testimonials" id="testimonials">
+    <div class="container animate-on-scroll">
+      <span class="section-label">What Students Say</span>
+      <h2 class="section-headline">Finally, physics <span class="gradient-text">makes sense.</span></h2>
+
+      <div class="testimonials__grid">
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <p class="testimonial-card__quote">"Mechanica finally made projectile motion click for me. The visualization makes the concept much easier to understand."</p>
+          <p class="testimonial-card__author">Class 11 Student</p>
+          <span class="testimonial-card__tag">Demo testimonial</span>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <p class="testimonial-card__quote">"Being able to experiment with the values makes physics feel much more intuitive."</p>
+          <p class="testimonial-card__author">Class 12 Student</p>
+          <span class="testimonial-card__tag">Demo testimonial</span>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <p class="testimonial-card__quote">"This is exactly the kind of visualization I wanted when learning mechanics."</p>
+          <p class="testimonial-card__author">JEE Aspirant</p>
+          <span class="testimonial-card__tag">Demo testimonial</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       VISION
+       ================================================================ -->
+  <section class="vision" id="vision">
+    <div class="container animate-on-scroll">
+      <span class="section-label">A Bigger Vision</span>
+      <h2 class="section-headline">
+        The next generation of learning<br>won't just <span class="gradient-text">show you the answer.</span>
+      </h2>
+      <p class="section-sub" style="margin: 0 auto;">
+        It'll let you interact with the system behind it.
+      </p>
+
+      <div class="vision__progression">
+        <div class="vision__step">
+          <div class="vision__step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <span class="vision__step-label">Textbook</span>
+        </div>
+        <span class="vision__arrow">→</span>
+        <div class="vision__step">
+          <div class="vision__step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </div>
+          <span class="vision__step-label">Animation</span>
+        </div>
+        <span class="vision__arrow">→</span>
+        <div class="vision__step">
+          <div class="vision__step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <span class="vision__step-label">Interactive Simulation</span>
+        </div>
+        <span class="vision__arrow">→</span>
+        <div class="vision__step">
+          <div class="vision__step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a10 10 0 1 0 10 10"/>
+              <path d="M12 2v4"/>
+              <path d="M22 12h-4"/>
+              <circle cx="12" cy="12" r="2"/>
+              <path d="M16 8l-2.5 2.5"/>
+            </svg>
+          </div>
+          <span class="vision__step-label">AI-Powered Physics</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       FAQ
+       ================================================================ -->
+  <section class="faq" id="faq">
+    <div class="container animate-on-scroll">
+      <h2 class="section-headline" style="text-align: center;">Frequently asked <span class="gradient-text">questions</span></h2>
+
+      <div class="faq__list">
+        <div class="faq__item">
+          <button class="faq__question" aria-expanded="false">
+            Is Mechanica free?
+            <svg class="faq__question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq__answer">
+            <p>Yes! Mechanica is completely free to use. No signup is required to access the currently available simulations.</p>
+          </div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__question" aria-expanded="false">
+            Which physics topics are currently supported?
+            <svg class="faq__question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq__answer">
+            <p>Currently, Projectile Motion is the only fully functional simulation. Additional modules including Newton's Laws, Energy & Momentum, Circular Motion, and more are under active development.</p>
+          </div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__question" aria-expanded="false">
+            Do I need to install anything?
+            <svg class="faq__question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq__answer">
+            <p>No. Mechanica runs entirely in your browser. No downloads, plugins, or installations required.</p>
+          </div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__question" aria-expanded="false">
+            Can teachers use Mechanica in classrooms?
+            <svg class="faq__question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq__answer">
+            <p>Absolutely. Mechanica is designed to work great on classroom projectors and shared screens. Teachers can adjust parameters live during lessons.</p>
+          </div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__question" aria-expanded="false">
+            Does Mechanica solve physics problems automatically?
+            <svg class="faq__question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq__answer">
+            <p>Mechanica focuses on visualization and building intuition, not on solving problems for you. It helps you understand what's physically happening so you can reason about problems better.</p>
+          </div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__question" aria-expanded="false">
+            Will more topics be added?
+            <svg class="faq__question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <div class="faq__answer">
+            <p>Yes. Newton's Laws, Energy & Momentum, Circular Motion, Gravitation, SHM, Waves, and many more topics are on the roadmap.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       FINAL CTA
+       ================================================================ -->
+  <section class="final-cta" id="final-cta">
+    <div class="container">
+      <div class="final-cta__content">
+        <h2 class="final-cta__headline">
+          Physics is meant to be <span class="gradient-text">understood,</span><br>not memorized.
+        </h2>
+        <a href="./sim.html" class="btn-cta btn-cta--large">Try Mechanica Free →</a>
+        <p class="final-cta__sub">
+          No signup required <span>·</span> Start exploring in seconds
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       FOOTER
+       ================================================================ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__inner">
+        <div class="footer__brand-col">
+          <a href="/" class="nav__brand">
+            <div class="nav__logo" aria-hidden="true">M</div>
+            <span class="nav__wordmark">Mechanica</span>
+          </a>
+          <p class="footer__brand-desc">
+            Interactive physics visualization<br>for students and teachers.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="footer__col-title">Product</h4>
+          <ul class="footer__col-links">
+            <li><a href="#explore">Explore</a></li>
+            <li><a href="#how-it-works">How it works</a></li>
+            <li><a href="./sim.html">Projectile Motion</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer__col-title">Resources</h4>
+          <ul class="footer__col-links">
+            <li><a href="#">Examples</a></li>
+            <li><a href="#">Documentation</a></li>
+            <li><a href="#">Blog</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="footer__col-title">Company</h4>
+          <ul class="footer__col-links">
+            <li><a href="#">About</a></li>
+            <li><a href="#">Contact</a></li>
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Terms</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer__bottom">
+        <span class="footer__copyright">© 2026 Mechanica. All rights reserved.</span>
+        <div class="footer__socials">
+          <!-- GitHub -->
+          <a href="#" aria-label="GitHub">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          </a>
+          <!-- X / Twitter -->
+          <a href="#" aria-label="X (Twitter)">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <!-- YouTube -->
+          <a href="#" aria-label="YouTube">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./landing.js"></script>
 </body>
 </html>
