@@ -79,7 +79,7 @@ html {
 }
 
 section[id] {
-  scroll-margin-top: calc(var(--nav-height) + 24px);
+  scroll-margin-top: calc(var(--nav-height) + 25px);
 }
 
 body {
