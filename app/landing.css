@@ -78,6 +78,10 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+section[id] {
+  scroll-margin-top: calc(var(--nav-height) + 24px);
+}
+
 body {
   font-family: var(--font-sans);
   color: var(--text-primary);
@@ -482,9 +486,20 @@ img {
   opacity: 0.4;
 }
 
-.sim-header__dot:first-child { background: #ef4444; opacity: 0.7; }
-.sim-header__dot:nth-child(2) { background: #eab308; opacity: 0.7; }
-.sim-header__dot:last-child { background: #22c55e; opacity: 0.7; }
+.sim-header__dot:first-child {
+  background: #ef4444;
+  opacity: 0.7;
+}
+
+.sim-header__dot:nth-child(2) {
+  background: #eab308;
+  opacity: 0.7;
+}
+
+.sim-header__dot:last-child {
+  background: #22c55e;
+  opacity: 0.7;
+}
 
 .sim-header__title {
   font-size: 0.72rem;
@@ -977,8 +992,15 @@ img {
 }
 
 @keyframes pulse-green {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .explore-card__status--soon {
@@ -1063,7 +1085,7 @@ img {
   direction: rtl;
 }
 
-.audience__inner--reverse > * {
+.audience__inner--reverse>* {
   direction: ltr;
 }
 
@@ -1451,8 +1473,8 @@ img {
     linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
   background-size: 60px 60px;
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, transparent 70%);
-  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.4) 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.4) 0%, transparent 70%);
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.4) 0%, transparent 70%);
 }
 
 /* ================================================================
@@ -1460,8 +1482,15 @@ img {
    ================================================================ */
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes fade-in-up {
@@ -1469,6 +1498,7 @@ img {
     opacity: 0;
     transform: translateY(24px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1490,31 +1520,45 @@ img {
 .animate-on-scroll.is-visible .problem-card:nth-child(1),
 .animate-on-scroll.is-visible .hiw__step:nth-child(1),
 .animate-on-scroll.is-visible .explore-card:nth-child(1),
-.animate-on-scroll.is-visible .testimonial-card:nth-child(1) { transition-delay: 0s; }
+.animate-on-scroll.is-visible .testimonial-card:nth-child(1) {
+  transition-delay: 0s;
+}
+
 .animate-on-scroll.is-visible .problem-card:nth-child(2),
 .animate-on-scroll.is-visible .hiw__step:nth-child(2),
 .animate-on-scroll.is-visible .explore-card:nth-child(2),
-.animate-on-scroll.is-visible .testimonial-card:nth-child(2) { transition-delay: 0.1s; }
+.animate-on-scroll.is-visible .testimonial-card:nth-child(2) {
+  transition-delay: 0.1s;
+}
+
 .animate-on-scroll.is-visible .problem-card:nth-child(3),
 .animate-on-scroll.is-visible .hiw__step:nth-child(3),
 .animate-on-scroll.is-visible .explore-card:nth-child(3),
-.animate-on-scroll.is-visible .testimonial-card:nth-child(3) { transition-delay: 0.2s; }
+.animate-on-scroll.is-visible .testimonial-card:nth-child(3) {
+  transition-delay: 0.2s;
+}
+
 .animate-on-scroll.is-visible .problem-card:nth-child(4),
 .animate-on-scroll.is-visible .hiw__step:nth-child(4),
-.animate-on-scroll.is-visible .explore-card:nth-child(4) { transition-delay: 0.3s; }
+.animate-on-scroll.is-visible .explore-card:nth-child(4) {
+  transition-delay: 0.3s;
+}
 
 /* ================================================================
    RESPONSIVE
    ================================================================ */
 
 @media (max-width: 1024px) {
+
   .problems__grid,
   .hiw__steps,
   .explore__grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .hiw__steps::before { display: none; }
+  .hiw__steps::before {
+    display: none;
+  }
 
   .demo__panel {
     grid-template-columns: 1fr;
@@ -1611,6 +1655,7 @@ img {
 
 /* ——— Reduced motion ——— */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
