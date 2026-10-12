@@ -4,20 +4,37 @@ const PROJECTILE_RADIUS = 6;
 const VELOCITY_VECTOR_SCALE = 2;
 const GRAVITY_VECTOR_LENGTH = 48;
 
-const CANVAS_COLORS = {
-  paper: "#ffffff",
-  grid: "#e8ecf0",
-  gridMajor: "#d0d6de",
-  axis: "#2a3138",
-  trajectory: "#2f6b72",
-  trajectoryPrediction: "#7a9aa0",
-  projectile: "#15181c",
-  launchPoint: "#2f6b72",
-  velocity: "#2a5f9e",
-  velocityX: "#5a8fc4",
-  velocityY: "#3d7aa8",
-  gravity: "#9a4034",
-  annotation: "#5c6570"
+const CANVAS_THEMES = {
+  dark: {
+    paper: "#0e1322",
+    grid: "rgba(148, 163, 184, 0.08)",
+    gridMajor: "rgba(148, 163, 184, 0.16)",
+    axis: "rgba(148, 163, 184, 0.4)",
+    trajectory: "#3b82f6",
+    trajectoryPrediction: "rgba(148, 163, 184, 0.35)",
+    projectile: "#60a5fa",
+    launchPoint: "#3b82f6",
+    velocity: "#38bdf8",
+    velocityX: "#818cf8",
+    velocityY: "#34d399",
+    gravity: "#f87171",
+    annotation: "#94a3b8"
+  },
+  light: {
+    paper: "#ffffff",
+    grid: "#e8ecf0",
+    gridMajor: "#d0d6de",
+    axis: "#2a3138",
+    trajectory: "#2f6b72",
+    trajectoryPrediction: "#7a9aa0",
+    projectile: "#15181c",
+    launchPoint: "#2f6b72",
+    velocity: "#2a5f9e",
+    velocityX: "#5a8fc4",
+    velocityY: "#3d7aa8",
+    gravity: "#9a4034",
+    annotation: "#5c6570"
+  }
 };
 
 const CANVAS_FONT = "12px \"IBM Plex Sans\", \"Segoe UI\", sans-serif";
@@ -35,6 +52,14 @@ function formatNumber(value) {
  */
 export function createCanvasRenderer(canvas) {
   const context = canvas.getContext("2d");
+
+  let currentTheme = (typeof document !== "undefined" && document.documentElement.getAttribute("data-theme")) || "dark";
+  let CANVAS_COLORS = CANVAS_THEMES[currentTheme] || CANVAS_THEMES.dark;
+
+  function setTheme(themeName) {
+    currentTheme = themeName in CANVAS_THEMES ? themeName : "dark";
+    CANVAS_COLORS = CANVAS_THEMES[currentTheme];
+  }
 
   const scale = {
     pixelsPerMeter: 1,
@@ -370,6 +395,7 @@ export function createCanvasRenderer(canvas) {
 
   return {
     render,
+    setTheme,
     getPointerCanvasPosition,
     findNearestTrajectoryIndex,
     isPointerNearProjectile,

@@ -64,6 +64,10 @@ const renderer = {
   // Optional on 2D renderer — guard before calling.
   setIsDragging:  (v) => { if (activeRenderer.setIsDragging) activeRenderer.setIsDragging(v); },
   reframeCamera:  (traj) => { if (activeRenderer.reframeCamera) activeRenderer.reframeCamera(traj); },
+  setTheme:       (theme) => {
+    threeRenderer.setTheme(theme);
+    canvas2DRenderer.setTheme(theme);
+  },
 };
 
 // UI update helpers
@@ -304,7 +308,25 @@ function bindControls() {
   });
 }
 
+function initThemeToggle() {
+  const toggleBtn = document.getElementById("themeToggle");
+  const initialTheme = localStorage.getItem("mechanica_theme") || "dark";
+  document.documentElement.setAttribute("data-theme", initialTheme);
+  renderer.setTheme(initialTheme);
+
+  if (!toggleBtn) return;
+  toggleBtn.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+    const next = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("mechanica_theme", next);
+    renderer.setTheme(next);
+    renderer.render(engine.getState());
+  });
+}
+
 // Initial boot
 bindControls();
+initThemeToggle();
 syncControlsToState(engine.getState());
 engine.init();

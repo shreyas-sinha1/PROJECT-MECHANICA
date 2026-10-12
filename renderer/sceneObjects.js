@@ -1,23 +1,48 @@
 import * as THREE from "three";
 
-// ─── Colour palette (mirrors the CSS custom properties) ───────────────────────
-export const COLOURS = {
-  trajectory: 0x2f6b72,   // teal
-  trajectoryPredict: 0x7a9aa0,   // muted teal
-  projectile: 0x0a0a0a,   // near black
-  launchPoint: 0x2f6b72,   // teal accent
-  velocity: 0x0d6fa8,   // medium blue (resultant v)
-  velocityX: 0x1565c0,   // blue  — horizontal component
-  velocityY: 0x2e7d32,   // green — vertical component (clearly distinct from vx)
-  gravity: 0xc62828,   // strong red
-  axisX: 0x2f6b72,   // teal  — horizontal axis
-  axisY: 0x2a5f9e,   // blue  — vertical axis
-  axisZ: 0x8a939e,   // muted — depth axis
-  ground: 0x1b2a38,   // dark charcoal
-  groundLine: 0x2c4460,   // subtle lighter lines for grid on dark ground
-  ambientLight: 0xffffff,
-  dirLight: 0xffffff,
+// ─── Theme colour palettes ───────────────────────────────────────────────────
+export const THEMES = {
+  dark: {
+    background: 0x06080d,
+    fog: 0x06080d,
+    trajectory: 0x3b82f6,   // neon blue
+    trajectoryPredict: 0x475569,   // muted slate dashed
+    projectile: 0x60a5fa,   // glowing blue projectile
+    launchPoint: 0x3b82f6,   // neon blue accent
+    velocity: 0x38bdf8,   // cyan resultant v
+    velocityX: 0x818cf8,   // indigo horizontal component
+    velocityY: 0x34d399,   // emerald vertical component
+    gravity: 0xf87171,   // bright coral red
+    axisX: 0x3b82f6,   // neon blue — horizontal axis
+    axisY: 0x60a5fa,   // sky blue — vertical axis
+    axisZ: 0x64748b,   // slate — depth axis
+    ground: 0x0e1322,   // deep navy platform
+    groundLine: 0x22304a,   // subtle navy grid lines
+    ambientLight: 0xffffff,
+    dirLight: 0xffffff,
+  },
+  light: {
+    background: 0xf7f8fa,
+    fog: 0xf7f8fa,
+    trajectory: 0x2f6b72,   // teal
+    trajectoryPredict: 0x7a9aa0,   // muted teal
+    projectile: 0x0a0a0a,   // near black
+    launchPoint: 0x2f6b72,   // teal accent
+    velocity: 0x0d6fa8,   // medium blue (resultant v)
+    velocityX: 0x1565c0,   // blue — horizontal component
+    velocityY: 0x2e7d32,   // green — vertical component
+    gravity: 0xc62828,   // strong red
+    axisX: 0x2f6b72,   // teal — horizontal axis
+    axisY: 0x2a5f9e,   // blue — vertical axis
+    axisZ: 0x8a939e,   // muted — depth axis
+    ground: 0x1b2a38,   // dark charcoal
+    groundLine: 0x2c4460,   // subtle lighter lines
+    ambientLight: 0xffffff,
+    dirLight: 0xffffff,
+  }
 };
+
+export const COLOURS = THEMES.dark;
 
 // ─── Trajectory line ──────────────────────────────────────────────────────────
 
@@ -63,7 +88,11 @@ export function createTrajectoryLine(colour, dashed = false) {
     material.needsUpdate = true;
   }
 
-  return { line, updatePoints, setVisible, setDashScale };
+  function setColor(newColor) {
+    material.color.set(newColor);
+  }
+
+  return { line, updatePoints, setVisible, setDashScale, setColor };
 }
 
 // ─── Projectile sphere ────────────────────────────────────────────────────────
@@ -87,7 +116,11 @@ export function createProjectileMesh() {
     mesh.position.set(x, y, z);
   }
 
-  return { mesh, setPosition };
+  function setColor(newColor) {
+    material.color.set(newColor);
+  }
+
+  return { mesh, setPosition, setColor };
 }
 
 // ─── Launch point marker ──────────────────────────────────────────────────────
@@ -107,7 +140,13 @@ export function createLaunchPointMesh() {
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(0, 0, 0);
-  return mesh;
+
+  function setColor(newColor) {
+    material.color.set(newColor);
+    material.emissive.set(newColor);
+  }
+
+  return { mesh, setColor };
 }
 
 // ─── Ground plane & contained platform ─────────────────────────────────────────
@@ -206,7 +245,12 @@ export function createGroundPlane() {
     gridGeo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   }
 
-  return { groundPlane: groundGroup, updateBounds };
+  function setColors(groundCol, lineCol) {
+    slabMat.color.set(groundCol);
+    gridMat.color.set(lineCol);
+  }
+
+  return { groundPlane: groundGroup, updateBounds, setColors };
 }
 
 // ─── Physics axis arrows ──────────────────────────────────────────────────────
@@ -240,7 +284,13 @@ export function createPhysicsAxes(length = 8) {
   xArrow.line.material.linewidth = 2;
   yArrow.line.material.linewidth = 2;
 
-  return { xArrow, yArrow, zArrow };
+  function setColors(xCol, yCol, zCol) {
+    xArrow.setColor(new THREE.Color(xCol));
+    yArrow.setColor(new THREE.Color(yCol));
+    zArrow.setColor(new THREE.Color(zCol));
+  }
+
+  return { xArrow, yArrow, zArrow, setColors };
 }
 
 // ─── Vector arrow helper ──────────────────────────────────────────────────────
@@ -304,7 +354,14 @@ export function createVectorArrow(colour) {
     return _origin.clone().addScaledVector(_dir, _length * overshoot);
   }
 
-  return { arrow, update, setVisible, getTipPosition };
+  function setColor(newColor) {
+    arrow.setColor(new THREE.Color(newColor));
+    if (shaftMesh && shaftMesh.material) {
+      shaftMesh.material.color.set(newColor);
+    }
+  }
+
+  return { arrow, update, setVisible, getTipPosition, setColor };
 }
 
 // ─── Lights ───────────────────────────────────────────────────────────────────
@@ -469,7 +526,11 @@ export function createTrajectoryDots(colour, opacity = 1.0) {
     points.visible = v;
   }
 
-  return { points, updateVectors, setSize, setVisible };
+  function setColor(newColor) {
+    material.color.set(newColor);
+  }
+
+  return { points, updateVectors, setSize, setVisible, setColor };
 }
 
 // ─── Active bead highlight / outline reticle ──────────────────────────────────

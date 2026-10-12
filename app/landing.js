@@ -1,9 +1,33 @@
 /* ================================================================
    MECHANICA — Landing Page Scripts
-   Interactive simulations, starfield, scroll animations, FAQ
+   Supports Theme Switcher: Dark Navy (Default) & Light Blueprint
    ================================================================ */
 
-// ——— Starfield Background ———
+// Helper to check current active theme
+function getTheme() {
+  return document.documentElement.getAttribute('data-theme') || 'dark';
+}
+
+// ——— Theme Switcher Controller ———
+function initThemeToggle() {
+  const toggleBtn = document.getElementById('themeToggle');
+  const savedTheme = localStorage.getItem('mechanica_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener('click', () => {
+    const current = getTheme();
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('mechanica_theme', next);
+
+    // Trigger canvas redraws for instant theme sync
+    window.dispatchEvent(new CustomEvent('mechanica:theme-change', { detail: { theme: next } }));
+  });
+}
+
+// ——— Starfield Background (Dynamic Theme Aware) ———
 function initStarfield() {
   const canvas = document.getElementById('starfieldCanvas');
   if (!canvas) return;
@@ -32,8 +56,8 @@ function initStarfield() {
       stars.push({
         x: Math.random() * w,
         y: Math.random() * h,
-        radius: Math.random() * 1.2 + 0.2,
-        opacity: Math.random() * 0.6 + 0.1,
+        radius: Math.random() * 1.3 + 0.3,
+        opacity: Math.random() * 0.6 + 0.15,
         twinkleSpeed: Math.random() * 0.02 + 0.005,
         twinkleOffset: Math.random() * Math.PI * 2,
       });
@@ -42,6 +66,7 @@ function initStarfield() {
 
   function draw(time) {
     ctx.clearRect(0, 0, w, h);
+    const isDark = getTheme() === 'dark';
 
     for (const star of stars) {
       const twinkle = prefersReducedMotion
@@ -50,7 +75,9 @@ function initStarfield() {
 
       ctx.beginPath();
       ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(200, 210, 230, ${twinkle})`;
+      ctx.fillStyle = isDark
+        ? `rgba(200, 210, 230, ${twinkle})`
+        : `rgba(21, 24, 28, ${twinkle})`;
       ctx.fill();
     }
 
@@ -67,9 +94,13 @@ function initStarfield() {
     resize();
     createStars();
   });
+
+  window.addEventListener('mechanica:theme-change', () => {
+    draw(0);
+  });
 }
 
-// ——— Hero Projectile Simulation ———
+// ——— Hero Projectile Simulation (Dual Theme Aware) ———
 function initHeroSim() {
   const canvas = document.getElementById('heroSimCanvas');
   if (!canvas) return;
@@ -123,17 +154,17 @@ function initHeroSim() {
     };
   }
 
-  function drawGrid() {
+  function drawGrid(isDark) {
     const margin = 80;
     const originX = margin;
     const originY = h - margin;
     const gridW = w - margin * 2;
     const gridH = h - margin * 2;
 
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.06)';
+    const gridSpacing = 40;
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.06)' : '#e8ecf0';
     ctx.lineWidth = 1;
 
-    const gridSpacing = 40;
     for (let x = originX; x <= originX + gridW; x += gridSpacing) {
       ctx.beginPath();
       ctx.moveTo(x, originY);
@@ -147,8 +178,19 @@ function initHeroSim() {
       ctx.stroke();
     }
 
+    if (!isDark) {
+      // Major grid line highlight in light theme
+      ctx.strokeStyle = '#d0d6de';
+      for (let x = originX; x <= originX + gridW; x += gridSpacing * 3) {
+        ctx.beginPath(); ctx.moveTo(x, originY); ctx.lineTo(x, originY - gridH); ctx.stroke();
+      }
+      for (let y = originY; y >= originY - gridH; y -= gridSpacing * 3) {
+        ctx.beginPath(); ctx.moveTo(originX, y); ctx.lineTo(originX + gridW, y); ctx.stroke();
+      }
+    }
+
     // Axes
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.22)' : '#2a3138';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(originX, originY);
@@ -160,7 +202,7 @@ function initHeroSim() {
     ctx.stroke();
 
     // Axis labels
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.5)' : '#5c6570';
     ctx.font = '10px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Distance (m)', originX + gridW / 2, originY + 32);
@@ -175,7 +217,7 @@ function initHeroSim() {
     const scaleY = gridH / (maxH * 1.4);
     const scale = Math.min(scaleX, scaleY);
 
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.25)';
+    ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.35)' : '#8a939e';
     ctx.font = '9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
     const tickStep = Math.pow(10, Math.floor(Math.log10(range / 4)));
@@ -196,7 +238,7 @@ function initHeroSim() {
     }
   }
 
-  function drawTrajectory(t) {
+  function drawTrajectory(t, isDark) {
     const points = [];
     const steps = 120;
     const tEnd = Math.min(t, totalTime);
@@ -211,10 +253,10 @@ function initHeroSim() {
 
     if (points.length < 2) return;
 
-    // Glow
+    // Glow aura
     ctx.save();
-    ctx.strokeStyle = 'rgba(96, 165, 250, 0.15)';
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = isDark ? 'rgba(96, 165, 250, 0.18)' : 'rgba(47, 107, 114, 0.16)';
+    ctx.lineWidth = isDark ? 8 : 6;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -225,16 +267,20 @@ function initHeroSim() {
     ctx.stroke();
     ctx.restore();
 
-    // Solid trail
-    const gradient = ctx.createLinearGradient(
-      points[0].x, points[0].y,
-      points[points.length - 1].x, points[points.length - 1].y
-    );
-    gradient.addColorStop(0, '#3b82f6');
-    gradient.addColorStop(0.5, '#8b5cf6');
-    gradient.addColorStop(1, '#22d3ee');
+    // Solid trajectory curve
+    if (isDark) {
+      const gradient = ctx.createLinearGradient(
+        points[0].x, points[0].y,
+        points[points.length - 1].x, points[points.length - 1].y
+      );
+      gradient.addColorStop(0, '#3b82f6');
+      gradient.addColorStop(0.5, '#8b5cf6');
+      gradient.addColorStop(1, '#22d3ee');
+      ctx.strokeStyle = gradient;
+    } else {
+      ctx.strokeStyle = '#2f6b72';
+    }
 
-    ctx.strokeStyle = gradient;
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -245,7 +291,7 @@ function initHeroSim() {
     }
     ctx.stroke();
 
-    // Dashed future trajectory
+    // Dashed future prediction trajectory
     if (t < totalTime) {
       const futurePoints = [];
       for (let i = 0; i <= steps; i++) {
@@ -257,8 +303,8 @@ function initHeroSim() {
       }
       if (futurePoints.length > 1) {
         ctx.setLineDash([4, 6]);
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.18)' : '#7a9aa0';
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(futurePoints[0].x, futurePoints[0].y);
         for (let i = 1; i < futurePoints.length; i++) {
@@ -270,26 +316,38 @@ function initHeroSim() {
     }
   }
 
-  function drawProjectile(t) {
+  function drawProjectile(t, isDark) {
     const tClamped = Math.min(t, totalTime);
     const wx = vx * tClamped;
     const wy = Math.max(0, vy * tClamped - 0.5 * g * tClamped * tClamped);
     const pos = worldToScreen(wx, wy);
 
-    // Outer glow
-    const glowGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 24);
-    glowGrad.addColorStop(0, 'rgba(96, 165, 250, 0.3)');
-    glowGrad.addColorStop(1, 'rgba(96, 165, 250, 0)');
-    ctx.fillStyle = glowGrad;
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 24, 0, Math.PI * 2);
-    ctx.fill();
+    if (isDark) {
+      // Dark navy projectile glow
+      const glowGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 24);
+      glowGrad.addColorStop(0, 'rgba(96, 165, 250, 0.35)');
+      glowGrad.addColorStop(1, 'rgba(96, 165, 250, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 24, 0, Math.PI * 2);
+      ctx.fill();
 
-    // Projectile
-    ctx.fillStyle = '#60a5fa';
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
-    ctx.fill();
+      ctx.fillStyle = '#60a5fa';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Light blueprint projectile
+      ctx.fillStyle = 'rgba(21, 24, 28, 0.12)';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y + 2, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#15181c';
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.fillStyle = '#fff';
     ctx.beginPath();
@@ -305,8 +363,9 @@ function initHeroSim() {
       const ex = pos.x + (currentVx / speed) * arrowLen;
       const ey = pos.y - (currentVy / speed) * arrowLen;
 
-      ctx.strokeStyle = 'rgba(96, 165, 250, 0.7)';
-      ctx.lineWidth = 1.5;
+      const vColor = isDark ? 'rgba(96, 165, 250, 0.85)' : '#2a5f9e';
+      ctx.strokeStyle = vColor;
+      ctx.lineWidth = 1.8;
       ctx.beginPath();
       ctx.moveTo(pos.x, pos.y);
       ctx.lineTo(ex, ey);
@@ -315,7 +374,7 @@ function initHeroSim() {
       // Arrowhead
       const headLen = 8;
       const angleA = Math.atan2(pos.y - ey, pos.x - ex);
-      ctx.fillStyle = 'rgba(96, 165, 250, 0.7)';
+      ctx.fillStyle = vColor;
       ctx.beginPath();
       ctx.moveTo(ex, ey);
       ctx.lineTo(ex + headLen * Math.cos(angleA + 0.4), ey + headLen * Math.sin(angleA + 0.4));
@@ -323,8 +382,8 @@ function initHeroSim() {
       ctx.closePath();
       ctx.fill();
 
-      // v label
-      ctx.fillStyle = 'rgba(96, 165, 250, 0.8)';
+      // Label
+      ctx.fillStyle = isDark ? '#93c5fd' : '#2a5f9e';
       ctx.font = '600 10px Inter, sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText('v = ' + speed.toFixed(1) + ' m/s', ex + 8, ey - 4);
@@ -332,15 +391,16 @@ function initHeroSim() {
 
     // Gravity vector
     const gArrowLen = 30;
-    ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
-    ctx.lineWidth = 1.5;
+    const gColor = isDark ? 'rgba(239, 68, 68, 0.7)' : '#9a4034';
+    ctx.strokeStyle = gColor;
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
     ctx.lineTo(pos.x, pos.y + gArrowLen);
     ctx.stroke();
 
     const gHeadLen = 6;
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+    ctx.fillStyle = gColor;
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y + gArrowLen);
     ctx.lineTo(pos.x - gHeadLen * 0.5, pos.y + gArrowLen - gHeadLen);
@@ -348,26 +408,24 @@ function initHeroSim() {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
+    ctx.fillStyle = isDark ? '#f87171' : '#9a4034';
     ctx.font = '600 9px Inter, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('g', pos.x + 8, pos.y + gArrowLen - 2);
   }
 
-  function drawGroundPlane() {
+  function drawGroundPlane(isDark) {
     const margin = 80;
     const originY = h - margin;
 
-    // Ground line highlight
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.16)' : '#2a3138';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(margin, originY);
     ctx.lineTo(w - margin, originY);
     ctx.stroke();
 
-    // Subtle ground hatching
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.06)';
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.06)' : 'rgba(42, 49, 56, 0.12)';
     ctx.lineWidth = 1;
     for (let x = margin; x < w - margin; x += 12) {
       ctx.beginPath();
@@ -377,9 +435,9 @@ function initHeroSim() {
     }
   }
 
-  function drawOriginMarker() {
+  function drawOriginMarker(isDark) {
     const origin = worldToScreen(0, 0);
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.45)' : '#8a939e';
     ctx.font = '9px JetBrains Mono, monospace';
     ctx.textAlign = 'center';
     ctx.fillText('O', origin.x, origin.y + 24);
@@ -396,19 +454,26 @@ function initHeroSim() {
 
   function draw() {
     ctx.clearRect(0, 0, w, h);
+    const isDark = getTheme() === 'dark';
 
-    // Background gradient
-    const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.7);
-    bgGrad.addColorStop(0, 'rgba(14, 19, 34, 1)');
-    bgGrad.addColorStop(1, 'rgba(6, 8, 13, 1)');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, w, h);
+    if (isDark) {
+      // Original Dark Navy Canvas Gradient
+      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.75);
+      bgGrad.addColorStop(0, '#0e1322');
+      bgGrad.addColorStop(1, '#06080d');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+    } else {
+      // Light Blueprint Paper Canvas
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+    }
 
-    drawGrid();
-    drawGroundPlane();
-    drawOriginMarker();
-    drawTrajectory(animTime);
-    drawProjectile(animTime);
+    drawGrid(isDark);
+    drawGroundPlane(isDark);
+    drawOriginMarker(isDark);
+    drawTrajectory(animTime, isDark);
+    drawProjectile(animTime, isDark);
     updateTelemetry(animTime);
 
     if (isPlaying && animTime < totalTime + 0.5) {
@@ -444,8 +509,7 @@ function initHeroSim() {
     isPlaying = false;
     draw();
   } else {
-    // Start auto-playing after a delay
-    setTimeout(() => draw(), 800);
+    setTimeout(() => draw(), 600);
   }
 
   window.addEventListener('resize', () => {
@@ -460,6 +524,10 @@ function initHeroSim() {
     }
   });
 
+  window.addEventListener('mechanica:theme-change', () => {
+    draw();
+  });
+
   // Controls
   const playBtn = document.getElementById('heroPlayBtn');
   const replayBtn = document.getElementById('heroReplayBtn');
@@ -467,7 +535,7 @@ function initHeroSim() {
   if (replayBtn) replayBtn.addEventListener('click', replay);
 }
 
-// ——— Demo Section Simulation ———
+// ——— Demo Section Simulation (Dual Theme Aware) ———
 function initDemoSim() {
   const canvas = document.getElementById('demoSimCanvas');
   if (!canvas) return;
@@ -528,18 +596,24 @@ function initDemoSim() {
 
   function draw() {
     ctx.clearRect(0, 0, w, h);
+    const isDark = getTheme() === 'dark';
 
-    const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.7);
-    bgGrad.addColorStop(0, 'rgba(14, 19, 34, 1)');
-    bgGrad.addColorStop(1, 'rgba(6, 8, 13, 1)');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, w, h);
+    if (isDark) {
+      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.7);
+      bgGrad.addColorStop(0, '#0e1322');
+      bgGrad.addColorStop(1, '#06080d');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, w, h);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+    }
 
     const p = getPhysics();
     const margin = 60;
 
     // Grid
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.05)';
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.05)' : '#e8ecf0';
     ctx.lineWidth = 1;
     for (let x = margin; x <= w - margin; x += 35) {
       ctx.beginPath(); ctx.moveTo(x, margin); ctx.lineTo(x, h - margin); ctx.stroke();
@@ -549,19 +623,12 @@ function initDemoSim() {
     }
 
     // Axes
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.18)' : '#2a3138';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(margin, h - margin); ctx.lineTo(w - margin, h - margin); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(margin, h - margin); ctx.lineTo(margin, margin); ctx.stroke();
 
-    // Ground hatching
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.06)';
-    ctx.lineWidth = 1;
-    for (let x = margin; x < w - margin; x += 10) {
-      ctx.beginPath(); ctx.moveTo(x, h - margin); ctx.lineTo(x - 6, h - margin + 6); ctx.stroke();
-    }
-
-    // Full trajectory (dashed)
+    // Full trajectory dashed prediction
     const fullPoints = [];
     const steps = 150;
     for (let i = 0; i <= steps; i++) {
@@ -574,7 +641,7 @@ function initDemoSim() {
 
     if (fullPoints.length > 1 && !isPlaying) {
       ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.14)' : '#7a9aa0';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(fullPoints[0].x, fullPoints[0].y);
@@ -598,14 +665,18 @@ function initDemoSim() {
       }
 
       if (trailPoints.length > 1) {
-        const grad = ctx.createLinearGradient(
-          trailPoints[0].x, trailPoints[0].y,
-          trailPoints[trailPoints.length - 1].x, trailPoints[trailPoints.length - 1].y
-        );
-        grad.addColorStop(0, '#3b82f6');
-        grad.addColorStop(1, '#22d3ee');
+        if (isDark) {
+          const grad = ctx.createLinearGradient(
+            trailPoints[0].x, trailPoints[0].y,
+            trailPoints[trailPoints.length - 1].x, trailPoints[trailPoints.length - 1].y
+          );
+          grad.addColorStop(0, '#3b82f6');
+          grad.addColorStop(1, '#22d3ee');
+          ctx.strokeStyle = grad;
+        } else {
+          ctx.strokeStyle = '#2f6b72';
+        }
 
-        ctx.strokeStyle = grad;
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -622,41 +693,46 @@ function initDemoSim() {
       const py = Math.max(0, launchH + p.vy * tClamped - 0.5 * g * tClamped * tClamped);
       const pos = worldToScreen(px, py, p);
 
-      const glowGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 20);
-      glowGrad.addColorStop(0, 'rgba(96, 165, 250, 0.3)');
-      glowGrad.addColorStop(1, 'rgba(96, 165, 250, 0)');
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
-      ctx.fill();
+      if (isDark) {
+        const glowGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 20);
+        glowGrad.addColorStop(0, 'rgba(96, 165, 250, 0.3)');
+        glowGrad.addColorStop(1, 'rgba(96, 165, 250, 0)');
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+        ctx.fill();
 
-      ctx.fillStyle = '#60a5fa';
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.fillStyle = '#60a5fa';
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#15181c';
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.fillStyle = '#fff';
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      // Show launch position indicator
+      // Launch position indicator
       const origin = worldToScreen(0, launchH, p);
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.3)';
+      ctx.fillStyle = isDark ? 'rgba(59, 130, 246, 0.4)' : '#2f6b72';
       ctx.beginPath();
-      ctx.arc(origin.x, origin.y, 8, 0, Math.PI * 2);
+      ctx.arc(origin.x, origin.y, 7, 0, Math.PI * 2);
       ctx.fill();
 
-      // Angle indicator
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+      ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.25)' : '#8a939e';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(origin.x, origin.y, 30, -p.angleRad, 0);
       ctx.stroke();
 
-      // Direction line
       const dirLen = 50;
-      ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+      ctx.strokeStyle = isDark ? 'rgba(59, 130, 246, 0.5)' : '#2a5f9e';
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
@@ -680,7 +756,6 @@ function initDemoSim() {
     draw();
   }
 
-  // Slider handlers
   function updateSliders() {
     v0 = parseFloat(v0Slider.value);
     angleDeg = parseFloat(angleSlider.value);
@@ -711,9 +786,13 @@ function initDemoSim() {
     resize();
     draw();
   });
+
+  window.addEventListener('mechanica:theme-change', () => {
+    draw();
+  });
 }
 
-// ——— Student Visual (Orbital particles) ———
+// ——— Student Visual (Dual Theme Aware) ———
 function initStudentVisual() {
   const canvas = document.getElementById('studentCanvas');
   if (!canvas) return;
@@ -747,7 +826,7 @@ function initStudentVisual() {
         angle: Math.random() * Math.PI * 2,
         speed: (0.002 + Math.random() * 0.008) * (Math.random() > 0.5 ? 1 : -1),
         size: 1 + Math.random() * 2.5,
-        opacity: 0.15 + Math.random() * 0.5,
+        opacity: 0.18 + Math.random() * 0.5,
         hue: 210 + Math.random() * 60,
       });
     }
@@ -755,19 +834,32 @@ function initStudentVisual() {
 
   function draw(time) {
     ctx.clearRect(0, 0, w, h);
+    const isDark = getTheme() === 'dark';
 
     const cx = w / 2;
     const cy = h / 2;
 
-    // Central glow
-    const centralGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120);
-    centralGlow.addColorStop(0, 'rgba(59, 130, 246, 0.08)');
-    centralGlow.addColorStop(1, 'transparent');
-    ctx.fillStyle = centralGlow;
-    ctx.fillRect(0, 0, w, h);
+    if (isDark) {
+      const centralGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120);
+      centralGlow.addColorStop(0, 'rgba(59, 130, 246, 0.08)');
+      centralGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = centralGlow;
+      ctx.fillRect(0, 0, w, h);
 
-    // Orbital rings
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.04)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.04)';
+    } else {
+      ctx.fillStyle = '#f7f8fa';
+      ctx.fillRect(0, 0, w, h);
+
+      const centralGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140);
+      centralGlow.addColorStop(0, 'rgba(47, 107, 114, 0.08)');
+      centralGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = centralGlow;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = 'rgba(208, 214, 222, 0.7)';
+    }
+
     ctx.lineWidth = 1;
     for (let r = 60; r < Math.min(w, h) * 0.4; r += 50) {
       ctx.beginPath();
@@ -775,7 +867,6 @@ function initStudentVisual() {
       ctx.stroke();
     }
 
-    // Particles
     for (const p of particles) {
       if (!prefersReducedMotion) {
         p.angle += p.speed;
@@ -783,16 +874,19 @@ function initStudentVisual() {
       const x = cx + p.orbitRadius * Math.cos(p.angle);
       const y = cy + p.orbitRadius * Math.sin(p.angle) * 0.6;
 
-      ctx.fillStyle = `hsla(${p.hue}, 70%, 65%, ${p.opacity})`;
+      if (isDark) {
+        ctx.fillStyle = `hsla(${p.hue}, 70%, 65%, ${p.opacity})`;
+      } else {
+        ctx.fillStyle = `rgba(47, 107, 114, ${p.opacity})`;
+      }
       ctx.beginPath();
       ctx.arc(x, y, p.size, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Central dot
-    ctx.fillStyle = 'rgba(96, 165, 250, 0.7)';
+    ctx.fillStyle = isDark ? 'rgba(96, 165, 250, 0.8)' : '#2f6b72';
     ctx.beginPath();
-    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
     ctx.fill();
 
     if (!prefersReducedMotion) {
@@ -803,9 +897,10 @@ function initStudentVisual() {
   resize();
   draw(0);
   window.addEventListener('resize', resize);
+  window.addEventListener('mechanica:theme-change', () => draw(0));
 }
 
-// ——— Teacher Visual (Waveform) ———
+// ——— Teacher Visual (Dual Theme Aware) ———
 function initTeacherVisual() {
   const canvas = document.getElementById('teacherCanvas');
   if (!canvas) return;
@@ -829,17 +924,22 @@ function initTeacherVisual() {
 
   function draw() {
     ctx.clearRect(0, 0, w, h);
+    const isDark = getTheme() === 'dark';
 
-    // "Screen" frame
-    const screenMargin = 40;
+    const screenMargin = 38;
     const screenX = screenMargin;
     const screenY = screenMargin;
     const screenW = w - screenMargin * 2;
     const screenH = h - screenMargin * 2;
 
-    // Screen background
-    ctx.fillStyle = 'rgba(10, 14, 24, 0.9)';
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+    if (isDark) {
+      ctx.fillStyle = 'rgba(10, 14, 24, 0.9)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#d5dae0';
+    }
+
     ctx.lineWidth = 1;
     const radius = 12;
     ctx.beginPath();
@@ -847,9 +947,7 @@ function initTeacherVisual() {
     ctx.fill();
     ctx.stroke();
 
-    // Grid inside screen
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.04)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.04)' : '#e8ecf0';
     for (let x = screenX + 20; x < screenX + screenW; x += 25) {
       ctx.beginPath(); ctx.moveTo(x, screenY + 10); ctx.lineTo(x, screenY + screenH - 10); ctx.stroke();
     }
@@ -857,20 +955,24 @@ function initTeacherVisual() {
       ctx.beginPath(); ctx.moveTo(screenX + 10, y); ctx.lineTo(screenX + screenW - 10, y); ctx.stroke();
     }
 
-    // Center axis
     const midY = screenY + screenH / 2;
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
+    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.12)' : '#2a3138';
     ctx.beginPath();
     ctx.moveTo(screenX + 20, midY);
     ctx.lineTo(screenX + screenW - 20, midY);
     ctx.stroke();
 
-    // Multiple waveforms
-    const waves = [
-      { amp: screenH * 0.2, freq: 0.03, phase: 0, color: 'rgba(59, 130, 246, 0.6)', width: 2 },
-      { amp: screenH * 0.12, freq: 0.05, phase: 2, color: 'rgba(139, 92, 246, 0.4)', width: 1.5 },
-      { amp: screenH * 0.08, freq: 0.08, phase: 4, color: 'rgba(34, 211, 238, 0.3)', width: 1 },
-    ];
+    const waves = isDark
+      ? [
+          { amp: screenH * 0.2, freq: 0.03, phase: 0, color: 'rgba(59, 130, 246, 0.7)', width: 2 },
+          { amp: screenH * 0.12, freq: 0.05, phase: 2, color: 'rgba(139, 92, 246, 0.5)', width: 1.5 },
+          { amp: screenH * 0.08, freq: 0.08, phase: 4, color: 'rgba(34, 211, 238, 0.4)', width: 1 },
+        ]
+      : [
+          { amp: screenH * 0.22, freq: 0.03, phase: 0, color: '#2f6b72', width: 2.2 },
+          { amp: screenH * 0.13, freq: 0.05, phase: 2, color: '#2a5f9e', width: 1.6 },
+          { amp: screenH * 0.08, freq: 0.08, phase: 4, color: '#9a4034', width: 1.2 },
+        ];
 
     for (const wave of waves) {
       ctx.strokeStyle = wave.color;
@@ -886,24 +988,10 @@ function initTeacherVisual() {
       ctx.stroke();
     }
 
-    // "Mechanica" label on screen
-    ctx.fillStyle = 'rgba(148, 163, 184, 0.15)';
+    ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.2)' : '#8a939e';
     ctx.font = '600 10px Inter, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('MECHANICA', screenX + 16, screenY + 24);
-
-    // Projector beam lines (subtle)
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.03)';
-    ctx.lineWidth = 1;
-    const beamOriginX = w / 2;
-    const beamOriginY = h + 30;
-    for (let i = 0; i < 5; i++) {
-      const targetX = screenX + (screenW / 6) * (i + 1);
-      ctx.beginPath();
-      ctx.moveTo(beamOriginX, beamOriginY);
-      ctx.lineTo(targetX, screenY + screenH);
-      ctx.stroke();
-    }
 
     if (!prefersReducedMotion) {
       time += 0.03;
@@ -914,6 +1002,7 @@ function initTeacherVisual() {
   resize();
   draw();
   window.addEventListener('resize', resize);
+  window.addEventListener('mechanica:theme-change', () => draw());
 }
 
 // ——— Scroll Animations ———
@@ -955,62 +1044,7 @@ function initNavScroll() {
   });
 }
 
-// ——— FAQ Accordion ———
-function initFAQ() {
-  const items = document.querySelectorAll('.faq__item');
-  items.forEach((item) => {
-    const btn = item.querySelector('.faq__question');
-    btn.addEventListener('click', () => {
-      const isOpen = item.classList.contains('is-open');
-      // Close all
-      items.forEach((i) => {
-        i.classList.remove('is-open');
-        i.querySelector('.faq__question').setAttribute('aria-expanded', 'false');
-      });
-      // Open clicked if it was closed
-      if (!isOpen) {
-        item.classList.add('is-open');
-        btn.setAttribute('aria-expanded', 'true');
-      }
-    });
-  });
-}
-
-// ——— Mobile Nav Toggle ———
-function initMobileNav() {
-  const toggle = document.getElementById('mobileToggle');
-  const links = document.getElementById('navLinks');
-  if (!toggle || !links) return;
-
-  toggle.addEventListener('click', () => {
-    const isOpen = links.style.display === 'flex';
-    links.style.display = isOpen ? 'none' : 'flex';
-    links.style.flexDirection = 'column';
-    links.style.position = 'absolute';
-    links.style.top = '100%';
-    links.style.left = '0';
-    links.style.right = '0';
-    links.style.background = 'rgba(6, 8, 13, 0.98)';
-    links.style.padding = '16px 32px';
-    links.style.borderBottom = '1px solid rgba(148, 163, 184, 0.08)';
-    links.style.gap = '16px';
-    toggle.setAttribute('aria-expanded', !isOpen);
-
-    if (isOpen) {
-      links.style.display = '';
-      links.style.flexDirection = '';
-      links.style.position = '';
-      links.style.top = '';
-      links.style.left = '';
-      links.style.right = '';
-      links.style.background = '';
-      links.style.padding = '';
-      links.style.borderBottom = '';
-      links.style.gap = '';
-    }
-  });
-}
-
+// ——— Smooth scroll helper with dynamic navbar offset ———
 function scrollToElement(target) {
   if (!target) return;
   const nav = document.getElementById('mainNav');
@@ -1050,8 +1084,67 @@ function initWatchDemo() {
   });
 }
 
+// ——— FAQ Accordion ———
+function initFAQ() {
+  const items = document.querySelectorAll('.faq__item');
+  items.forEach((item) => {
+    const btn = item.querySelector('.faq__question');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      const isOpen = item.classList.contains('is-open');
+      items.forEach((i) => {
+        i.classList.remove('is-open');
+        const b = i.querySelector('.faq__question');
+        if (b) b.setAttribute('aria-expanded', 'false');
+      });
+      if (!isOpen) {
+        item.classList.add('is-open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+}
+
+// ——— Mobile Nav Toggle ———
+function initMobileNav() {
+  const toggle = document.getElementById('mobileToggle');
+  const links = document.getElementById('navLinks');
+  if (!toggle || !links) return;
+
+  toggle.addEventListener('click', () => {
+    const isOpen = links.style.display === 'flex';
+    links.style.display = isOpen ? 'none' : 'flex';
+    links.style.flexDirection = 'column';
+    links.style.position = 'absolute';
+    links.style.top = '100%';
+    links.style.left = '0';
+    links.style.right = '0';
+    links.style.background = 'var(--bg-glass)';
+    links.style.padding = '20px 32px';
+    links.style.borderBottom = '1px solid var(--border-medium)';
+    links.style.gap = '16px';
+    links.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.2)';
+    toggle.setAttribute('aria-expanded', !isOpen);
+
+    if (isOpen) {
+      links.style.display = '';
+      links.style.flexDirection = '';
+      links.style.position = '';
+      links.style.top = '';
+      links.style.left = '';
+      links.style.right = '';
+      links.style.background = '';
+      links.style.padding = '';
+      links.style.borderBottom = '';
+      links.style.gap = '';
+      links.style.boxShadow = '';
+    }
+  });
+}
+
 // ——— Initialize Everything ———
 document.addEventListener('DOMContentLoaded', () => {
+  initThemeToggle();
   initStarfield();
   initHeroSim();
   initDemoSim();

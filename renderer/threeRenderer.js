@@ -28,6 +28,7 @@ import {
   trajectoryToVectors,
   pointToVector3,
   COLOURS,
+  THEMES,
 } from "./sceneObjects.js";
 
 // Arrow scales — recomputed by frameCameraToTrajectory whenever the scene rescales.
@@ -45,11 +46,14 @@ let GRAVITY_SCALE = 0.32;   // m/s² → scene units for gravity arrow
 export function createThreeRenderer(mountEl) {
 
   // ── WebGL renderer ─────────────────────────────────────────────────────────
+  const initialThemeName = (typeof document !== "undefined" && document.documentElement.getAttribute("data-theme")) || "dark";
+  const initialColors = THEMES[initialThemeName] || THEMES.dark;
+
   const webgl = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   webgl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   webgl.shadowMap.enabled = true;
   webgl.shadowMap.type = THREE.PCFShadowMap;
-  webgl.setClearColor(0xf7f8fa, 1);
+  webgl.setClearColor(initialColors.background, 1);
 
   const domCanvas = webgl.domElement;
   domCanvas.style.display = "block";
@@ -84,10 +88,10 @@ export function createThreeRenderer(mountEl) {
 
   // ── Scene ──────────────────────────────────────────────────────────────────
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xf7f8fa);
+  scene.background = new THREE.Color(initialColors.background);
 
   // Subtle atmospheric fog to give depth cues
-  scene.fog = new THREE.FogExp2(0xf7f8fa, 0.004);
+  scene.fog = new THREE.FogExp2(initialColors.fog, 0.004);
 
   // ── Camera ─────────────────────────────────────────────────────────────────
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
@@ -128,35 +132,37 @@ export function createThreeRenderer(mountEl) {
   lights.forEach((l) => scene.add(l));
 
   // ── Ground & Contained Platform ───────────────────────────────────────────
-  const { groundPlane, updateBounds: updateGroundBounds } = createGroundPlane();
+  const { groundPlane, updateBounds: updateGroundBounds, setColors: setGroundColors } = createGroundPlane();
+  setGroundColors(initialColors.ground, initialColors.groundLine);
   scene.add(groundPlane);
 
   // ── Physics axes ───────────────────────────────────────────────────────────
-  const { xArrow, yArrow, zArrow } = createPhysicsAxes(10);
+  const { xArrow, yArrow, zArrow, setColors: setAxesColors } = createPhysicsAxes(10);
+  setAxesColors(initialColors.axisX, initialColors.axisY, initialColors.axisZ);
   scene.add(xArrow, yArrow, zArrow);
 
   // ── Trajectory lines ──────────────────────────────────────────────────────
-  const activeLine = createTrajectoryLine(COLOURS.trajectory, false);
-  const predictedLine = createTrajectoryLine(COLOURS.trajectoryPredict, true);
+  const activeLine = createTrajectoryLine(initialColors.trajectory, false);
+  const predictedLine = createTrajectoryLine(initialColors.trajectoryPredict, true);
   scene.add(activeLine.line, predictedLine.line);
 
   // ── Trajectory dots (stroboscopic time-step markers) ─────────────────────
-  // activeDots   — teal solid dots, shown during & after animation
-  // predictedDots — muted dots, shown over the predicted (pre-launch) path
-  const activeDots = createTrajectoryDots(COLOURS.trajectory, 1.0);
-  const predictedDots = createTrajectoryDots(COLOURS.trajectoryPredict, 0.65);
+  const activeDots = createTrajectoryDots(initialColors.trajectory, 1.0);
+  const predictedDots = createTrajectoryDots(initialColors.trajectoryPredict, 0.65);
   scene.add(activeDots.points, predictedDots.points);
 
   // ── Projectile & launch point ──────────────────────────────────────────────
-  const { mesh: projectileMesh, setPosition: setProjectilePos } = createProjectileMesh();
-  const launchPointMesh = createLaunchPointMesh();
+  const { mesh: projectileMesh, setPosition: setProjectilePos, setColor: setProjectileColor } = createProjectileMesh();
+  setProjectileColor(initialColors.projectile);
+  const { mesh: launchPointMesh, setColor: setLaunchPointColor } = createLaunchPointMesh();
+  setLaunchPointColor(initialColors.launchPoint);
   scene.add(projectileMesh, launchPointMesh);
 
   // ── Vector arrows ──────────────────────────────────────────────────────────
-  const velocityArrow = createVectorArrow(COLOURS.velocity);
-  const velocityXArrow = createVectorArrow(COLOURS.velocityX);
-  const velocityYArrow = createVectorArrow(COLOURS.velocityY);
-  const gravityArrow = createVectorArrow(COLOURS.gravity);
+  const velocityArrow = createVectorArrow(initialColors.velocity);
+  const velocityXArrow = createVectorArrow(initialColors.velocityX);
+  const velocityYArrow = createVectorArrow(initialColors.velocityY);
+  const gravityArrow = createVectorArrow(initialColors.gravity);
   scene.add(
     velocityArrow.arrow,
     velocityXArrow.arrow,
@@ -618,6 +624,27 @@ export function createThreeRenderer(mountEl) {
     }
   }
 
+  // ── Theme switching ──────────────────────────────────────────────────────
+  function setTheme(themeName) {
+    const colors = THEMES[themeName] || THEMES.dark;
+    webgl.setClearColor(colors.background, 1);
+    scene.background.set(colors.background);
+    if (scene.fog) scene.fog.color.set(colors.fog);
+
+    activeLine.setColor(colors.trajectory);
+    predictedLine.setColor(colors.trajectoryPredict);
+    activeDots.setColor(colors.trajectory);
+    predictedDots.setColor(colors.trajectoryPredict);
+    setProjectileColor(colors.projectile);
+    setLaunchPointColor(colors.launchPoint);
+    setGroundColors(colors.ground, colors.groundLine);
+    setAxesColors(colors.axisX, colors.axisY, colors.axisZ);
+    velocityArrow.setColor(colors.velocity);
+    velocityXArrow.setColor(colors.velocityX);
+    velocityYArrow.setColor(colors.velocityY);
+    gravityArrow.setColor(colors.gravity);
+  }
+
   // ── Dispose ───────────────────────────────────────────────────────────────
 
   function dispose() {
@@ -636,6 +663,7 @@ export function createThreeRenderer(mountEl) {
 
   return {
     render,
+    setTheme,
     getPointerCanvasPosition,
     findNearestTrajectoryIndex,
     isPointerNearProjectile,
