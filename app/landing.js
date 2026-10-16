@@ -3,6 +3,10 @@
    Supports Theme Switcher: Dark Navy (Default) & Light Blueprint
    ================================================================ */
 
+import { parseCustomSimulationInput } from "../spec/parser.js";
+import { SPEC_45_DEGREES, SPEC_LUNAR, SPEC_STEEP, SPEC_SHALLOW_FAST } from "../spec/examples.js";
+import { SIMULATION_SPEC_VERSION } from "../spec/simulationSpec.js";
+
 // Helper to check current active theme
 function getTheme() {
   return document.documentElement.getAttribute('data-theme') || 'dark';
@@ -1142,6 +1146,131 @@ function initMobileNav() {
   });
 }
 
+// ——— Custom Simulation Pipeline Controller ———
+function initCustomSimulationPipeline() {
+  const form = document.getElementById('customSimForm');
+  const input = document.getElementById('customSimInput');
+  const feedback = document.getElementById('customSimFeedback');
+  const chips = document.querySelectorAll('.custom-sim__chip');
+  const toggleGuideBtn = document.getElementById('toggleSpecGuideBtn');
+  const guide = document.getElementById('customSimGuide');
+
+  if (!form || !input) return;
+
+  const presets = {
+    '45deg': JSON.stringify(SPEC_45_DEGREES, null, 2),
+    'lunar': JSON.stringify(SPEC_LUNAR, null, 2),
+    'steep': JSON.stringify(SPEC_STEEP, null, 2),
+    'fast': JSON.stringify(SPEC_SHALLOW_FAST, null, 2),
+    'template': JSON.stringify({
+      version: SIMULATION_SPEC_VERSION,
+      module: "projectileMotion",
+      parameters: {
+        initialVelocity: 45,
+        launchAngleDegrees: 60,
+        gravity: 9.81
+      }
+    }, null, 2)
+  };
+
+  function autoResize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+  }
+
+  input.addEventListener('input', () => {
+    autoResize();
+    if (feedback && feedback.style.display !== 'none') {
+      feedback.style.display = 'none';
+    }
+  });
+
+  // Handle enter key (unless Shift+Enter for newline)
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  // Quick preset chips
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const presetKey = chip.dataset.preset;
+      if (presets[presetKey]) {
+        input.value = presets[presetKey];
+        autoResize();
+        input.focus();
+        showFeedback('Loaded preset into configuration editor.', 'success');
+      }
+    });
+  });
+
+  // Toggle format guide
+  if (toggleGuideBtn && guide) {
+    toggleGuideBtn.addEventListener('click', () => {
+      const isExpanded = toggleGuideBtn.getAttribute('aria-expanded') === 'true';
+      toggleGuideBtn.setAttribute('aria-expanded', !isExpanded);
+      guide.style.display = isExpanded ? 'none' : 'block';
+      const arrow = toggleGuideBtn.querySelector('svg');
+      if (arrow) {
+        arrow.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+        arrow.style.transition = 'transform 0.2s ease';
+      }
+    });
+  }
+
+  function showFeedback(message, type = 'error') {
+    if (!feedback) return;
+    feedback.className = `custom-sim__feedback custom-sim__feedback--${type}`;
+    feedback.textContent = message;
+    feedback.style.display = 'block';
+  }
+
+  // Handle launch
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const rawVal = input.value.trim();
+
+    if (!rawVal) {
+      showFeedback('Please enter formatted data, JSON specification, or a question.', 'error');
+      input.focus();
+      return;
+    }
+
+    const result = parseCustomSimulationInput(rawVal);
+    if (!result.valid) {
+      const msg = result.errors && result.errors.length > 0
+        ? result.errors.join(' • ')
+        : 'Invalid simulation configurations. Please check parameter ranges.';
+      showFeedback(`✕ ${msg}`, 'error');
+      input.focus();
+      return;
+    }
+
+    const { parameters } = result.spec;
+    showFeedback(
+      `✓ Valid configuration: v = ${parameters.initialVelocity} m/s, θ = ${parameters.launchAngleDegrees}°, g = ${parameters.gravity} m/s². Launching simulation...`,
+      'success'
+    );
+
+    // Save spec to sessionStorage as well as passing in URL
+    try {
+      sessionStorage.setItem('mechanica_launch_spec', JSON.stringify(result.spec));
+    } catch (err) {
+      console.warn('SessionStorage unavailable:', err);
+    }
+
+    const specEncoded = encodeURIComponent(JSON.stringify(result.spec));
+    const targetUrl = `./sim.html?spec=${specEncoded}`;
+
+    // Open simulation in new tab, matching "Launch simulation ↗" behavior
+    setTimeout(() => {
+      window.open(targetUrl, '_blank');
+    }, 250);
+  });
+}
+
 // ——— Initialize Everything ———
 document.addEventListener('DOMContentLoaded', () => {
   initThemeToggle();
@@ -1156,4 +1285,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initSmoothScroll();
   initWatchDemo();
+  initCustomSimulationPipeline();
 });
+

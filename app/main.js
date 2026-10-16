@@ -122,9 +122,21 @@ function updateButtonStates(state) {
 }
 
 function syncControlsToState(state) {
-  velocitySlider.value = state.parameters.initialVelocity;
-  angleSlider.value = state.parameters.launchAngleDegrees;
-  gravitySlider.value = state.parameters.gravity;
+  const v = state.parameters.initialVelocity;
+  const a = state.parameters.launchAngleDegrees;
+  const g = state.parameters.gravity;
+
+  if (v > Number(velocitySlider.max)) velocitySlider.max = Math.ceil(v);
+  if (v < Number(velocitySlider.min)) velocitySlider.min = Math.floor(v);
+  velocitySlider.value = v;
+
+  if (a > Number(angleSlider.max)) angleSlider.max = Math.ceil(a);
+  if (a < Number(angleSlider.min)) angleSlider.min = Math.floor(a);
+  angleSlider.value = a;
+
+  if (g > Number(gravitySlider.max)) gravitySlider.max = Math.ceil(g);
+  if (g < Number(gravitySlider.min)) gravitySlider.min = Math.floor(g * 100) / 100;
+  gravitySlider.value = g;
 }
 
 // Engine subscriber: syncs rendering and UI telemetry on every state tick
@@ -325,8 +337,60 @@ function initThemeToggle() {
   });
 }
 
+function loadSpecFromEnvironment() {
+  let spec = null;
+  const params = new URLSearchParams(window.location.search);
+  const specParam = params.get("spec");
+
+  if (specParam) {
+    try {
+      spec = JSON.parse(decodeURIComponent(specParam));
+    } catch (e) {
+      console.warn("[Mechanica] Could not parse spec from URL query parameter:", e);
+    }
+  }
+
+  if (!spec) {
+    try {
+      const stored = sessionStorage.getItem("mechanica_launch_spec");
+      if (stored) {
+        spec = JSON.parse(stored);
+        sessionStorage.removeItem("mechanica_launch_spec");
+      }
+    } catch (e) {
+      console.warn("[Mechanica] Could not parse spec from sessionStorage:", e);
+    }
+  }
+
+  if (spec) {
+    const result = engine.loadSpec(spec, { autoLaunch: true });
+    if (result && result.valid) {
+      syncControlsToState(engine.getState());
+      renderer.reframeCamera(engine.getState().predictedTrajectory);
+
+      // Sync preset buttons if gravity matches a known preset
+      const grav = result.spec.parameters.gravity;
+      const gravModeEl = document.getElementById("gravityModeValue");
+      if (gravModeEl) {
+        if (Math.abs(grav - 9.81) < 0.05) gravModeEl.textContent = "Earth gravity";
+        else if (Math.abs(grav - 1.62) < 0.05) gravModeEl.textContent = "Moon gravity";
+        else if (Math.abs(grav - 20) < 0.05) gravModeEl.textContent = "Jupiter gravity";
+        else gravModeEl.textContent = `Custom (${grav} m/s²)`;
+      }
+      gravityPresetButtons.forEach((btn) => {
+        const val = Number(btn.dataset.gravity);
+        btn.classList.toggle("is-active", Math.abs(val - grav) < 0.05);
+      });
+    }
+  }
+}
+
 // Initial boot
 bindControls();
 initThemeToggle();
 syncControlsToState(engine.getState());
 engine.init();
+loadSpecFromEnvironment();
+
+if (import.meta.env.DEV) window.__mechanica = { engine };
+

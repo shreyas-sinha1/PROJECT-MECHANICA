@@ -3,6 +3,10 @@ import { resolve } from "path";
 
 export default defineConfig({
   root: "app",
+  test: {
+    root: ".",
+    include: ["spec/__tests__/**/*.test.js"],
+  },
   build: {
     outDir: "../dist",
     emptyOutDir: true,

@@ -1,5 +1,6 @@
 import { computeProjectileMotion } from "../modules/projectileMotion/index.js";
 import { createSimulationState } from "./simulationState.js";
+import { loadSimulationSpec } from "../spec/adapter.js";
 
 const TIME_STEP = 1 / 120;
 
@@ -176,7 +177,7 @@ export function createEngine(scene) {
     notify();
   }
 
-  return {
+  const engineInstance = {
     init,
     getState,
     launch,
@@ -188,6 +189,9 @@ export function createEngine(scene) {
     setDragging,
     stopAnimation,
     subscribe,
+    loadSpec: null,
     TIME_STEP
   };
+  engineInstance.loadSpec = (rawSpec, options) => loadSimulationSpec(engineInstance, rawSpec, options);
+  return engineInstance;
 }

@@ -362,6 +362,94 @@
         </div>
       </div>
 
+      <!-- ================================================================
+           CUSTOM SIMULATION SECTION (STRUCTURED PIPELINE)
+           ================================================================ -->
+      <div class="custom-sim" id="customSimSection">
+        <div class="custom-sim__header">
+          <div class="custom-sim__badge">
+            <span class="custom-sim__badge-dot"></span>
+            <span>CUSTOM SIMULATION PIPELINE</span>
+          </div>
+          <span class="custom-sim__hint">Enter structured data (v1.0 spec or parameters) to launch directly</span>
+        </div>
+
+        <form class="custom-sim__form" id="customSimForm" autocomplete="off">
+          <div class="custom-sim__input-wrapper">
+            <div class="custom-sim__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+            </div>
+            <textarea
+              id="customSimInput"
+              class="custom-sim__input"
+              rows="1"
+              placeholder='ENTER the question or formatted data (e.g. { "initialVelocity": 45, "launchAngleDegrees": 60, "gravity": 9.81 })'
+              spellcheck="false"
+              aria-label="Custom simulation specification or question"
+            ></textarea>
+            <button type="submit" id="customSimLaunchBtn" class="custom-sim__launch-btn" title="Launch custom simulation">
+              <span>LAUNCH</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <div class="custom-sim__feedback" id="customSimFeedback" role="alert" style="display: none;"></div>
+
+          <div class="custom-sim__footer">
+            <div class="custom-sim__presets" aria-label="Quick configuration presets">
+              <span class="custom-sim__presets-label">Quick presets:</span>
+              <button type="button" class="custom-sim__chip" data-preset="45deg">45° Max Range (42 m/s)</button>
+              <button type="button" class="custom-sim__chip" data-preset="lunar">Lunar Gravity (1.62 m/s²)</button>
+              <button type="button" class="custom-sim__chip" data-preset="steep">Steep Arc (80°, 25 m/s)</button>
+              <button type="button" class="custom-sim__chip" data-preset="fast">Fast Flat (10°, 55 m/s)</button>
+              <button type="button" class="custom-sim__chip" data-preset="template">Spec v1.0 JSON</button>
+            </div>
+            <button type="button" class="custom-sim__toggle-guide" id="toggleSpecGuideBtn" aria-expanded="false">
+              <span>Format Guide</span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          </div>
+
+          <div class="custom-sim__guide" id="customSimGuide" style="display: none;">
+            <div class="custom-sim__guide-card">
+              <div class="guide-title">Supported Formats:</div>
+              <div class="guide-grid">
+                <div class="guide-col">
+                  <div class="guide-label">1. Full SimulationSpec v1.0 (JSON)</div>
+                  <pre class="guide-code"><code>{
+  "version": "1.0",
+  "module": "projectileMotion",
+  "parameters": {
+    "initialVelocity": 42,
+    "launchAngleDegrees": 45,
+    "gravity": 9.81
+  }
+}</code></pre>
+                </div>
+                <div class="guide-col">
+                  <div class="guide-label">2. Shorthand Parameters</div>
+                  <pre class="guide-code"><code>{"initialVelocity": 50, "launchAngleDegrees": 60, "gravity": 9.81}
+
+// or key-value shorthand:
+velocity: 45, angle: 60, gravity: 9.81
+v=45, a=60, g=9.81</code></pre>
+                </div>
+                <div class="guide-col">
+                  <div class="guide-label">3. Natural Physics Question</div>
+                  <pre class="guide-code"><code>"A ball is launched at an angle of 45 degrees with an initial velocity of 40 m/s under 9.81 m/s² gravity"</code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
       <div class="explore__more">
         <p>More simulations are being built.</p>
         <div class="explore__more-topics">
