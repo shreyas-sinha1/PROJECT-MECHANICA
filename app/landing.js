@@ -1220,54 +1220,210 @@ function initCustomSimulationPipeline() {
     });
   }
 
-  function showFeedback(message, type = 'error') {
+  function showFeedback(message, type = 'error', htmlLink = null) {
     if (!feedback) return;
     feedback.className = `custom-sim__feedback custom-sim__feedback--${type}`;
     feedback.textContent = message;
+    if (htmlLink) {
+      const link = document.createElement('a');
+      link.href = htmlLink.url;
+      link.textContent = htmlLink.text;
+      link.style.marginLeft = '10px';
+      link.style.textDecoration = 'underline';
+      link.style.fontWeight = '700';
+      link.style.color = 'inherit';
+      link.style.cursor = 'pointer';
+      feedback.appendChild(link);
+    }
     feedback.style.display = 'block';
   }
 
-  // Handle launch
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const rawVal = input.value.trim();
-
-    if (!rawVal) {
-      showFeedback('Please enter formatted data, JSON specification, or a question.', 'error');
-      input.focus();
-      return;
-    }
-
-    const result = parseCustomSimulationInput(rawVal);
-    if (!result.valid) {
-      const msg = result.errors && result.errors.length > 0
-        ? result.errors.join(' • ')
-        : 'Invalid simulation configurations. Please check parameter ranges.';
-      showFeedback(`✕ ${msg}`, 'error');
-      input.focus();
-      return;
-    }
-
-    const { parameters } = result.spec;
-    showFeedback(
-      `✓ Valid configuration: v = ${parameters.initialVelocity} m/s, θ = ${parameters.launchAngleDegrees}°, g = ${parameters.gravity} m/s². Launching simulation...`,
-      'success'
-    );
+  function launchSimulation(spec, messagePrefix = 'Valid configuration') {
+    const { parameters } = spec;
 
     // Save spec to sessionStorage as well as passing in URL
     try {
-      sessionStorage.setItem('mechanica_launch_spec', JSON.stringify(result.spec));
+      sessionStorage.setItem('mechanica_launch_spec', JSON.stringify(spec));
     } catch (err) {
       console.warn('SessionStorage unavailable:', err);
     }
 
-    const specEncoded = encodeURIComponent(JSON.stringify(result.spec));
+    const specEncoded = encodeURIComponent(JSON.stringify(spec));
     const targetUrl = `./sim.html?spec=${specEncoded}`;
 
-    // Open simulation in new tab, matching "Launch simulation ↗" behavior
-    setTimeout(() => {
-      window.open(targetUrl, '_blank');
-    }, 250);
+    showFeedback(
+      `✓ ${messagePrefix}: v = ${parameters.initialVelocity} m/s, θ = ${parameters.launchAngleDegrees}°, g = ${parameters.gravity} m/s². Launching simulation...`,
+      'success',
+      { text: 'Open Simulation ↗', url: targetUrl }
+    );
+
+    // Attempt to open in a new tab
+    let opened = false;
+    try {
+      const newTab = window.open(targetUrl, '_blank');
+      // If new tab was successfully opened (not blocked by browser popup blocker)
+      if (newTab && !newTab.closed && typeof newTab.closed !== 'undefined') {
+        newTab.focus();
+        opened = true;
+      }
+    } catch (err) {
+      opened = false;
+    }
+
+    // If browser popup blocker blocked window.open after async fetch, navigate directly
+    if (!opened) {
+      setTimeout(() => {
+        window.location.href = targetUrl;
+      }, 400);
+    }
+  }
+
+  // Handle launch
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rawVal = input.value.trim();
+
+    if (!rawVal) {
+      showFeedback('Please enter formatted data, JSON specification, or a physics question.', 'error');
+      input.focus();
+      return;
+    }
+
+    // 1. Direct JSON or preset candidate
+    const isJsonLike = (rawVal.startsWith('{') && rawVal.endsWith('}')) || (rawVal.startsWith('[') && rawVal.endsWith(']'));
+    if (isJsonLike) {
+      const localResult = parseCustomSimulationInput(rawVal);
+      if (localResult.valid) {
+        launchSimulation(localResult.spec, 'Valid JSON specification');
+        return;
+      } else {
+        const msg = localResult.errors && localResult.errors.length > 0
+          ? localResult.errors.join(' • ')
+          : 'Invalid JSON specification.';
+        showFeedback(`✕ ${msg}`, 'error');
+        input.focus();
+        return;
+      }
+    }
+
+    // 2. Pure key-value shorthand (e.g. v=45, a=60, g=9.81) without conversational words
+    const isPureKeyValue = /^([a-zA-Z_]+\s*[:=]\s*-?[\d.]+\s*[,;\n\s]*)+$/.test(rawVal);
+    if (isPureKeyValue) {
+      const kvResult = parseCustomSimulationInput(rawVal);
+      if (kvResult.valid) {
+        launchSimulation(kvResult.spec, 'Valid shorthand parameters');
+        return;
+      }
+    }
+
+    // 3. Natural language physics question -> Gemini AI Layer
+    const launchBtn = document.getElementById('customSimLaunchBtn');
+    if (launchBtn) {
+      launchBtn.disabled = true;
+      launchBtn.style.opacity = '0.6';
+    }
+
+    showFeedback('Interpreting physics question with Gemini AI...', 'loading');
+
+    try {
+      const response = await fetch('/api/interpret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: rawVal }),
+      });
+
+      const data = await response.json();
+
+      if (data.canLaunch && data.spec) {
+        const conversions = data.interpretation?.unitConversions || [];
+        const convText = conversions.length > 0
+          ? ` [Normalized: ${conversions.map((c) => `${c.originalText} → ${c.convertedValue} ${c.convertedUnit}`).join(', ')}]`
+          : '';
+        launchSimulation(data.spec, `Interpreted by Gemini AI${convText}`);
+        return;
+      }
+
+      // If cannot launch, report specific reasons (missing parameters, unsupported, contradictions, ambiguity)
+      if (data.code === 'MISSING_API_KEY') {
+        // Fallback to local regex parser if available
+        const localFallback = parseCustomSimulationInput(rawVal);
+        if (localFallback.valid) {
+          launchSimulation(localFallback.spec, 'Parsed via local fallback (GEMINI_API_KEY not configured)');
+          return;
+        }
+        showFeedback(
+          '✕ Gemini API key not found. Please set GEMINI_API_KEY in your .env file to enable AI natural-language interpretation. (JSON specifications and quick presets still work!)',
+          'error'
+        );
+        return;
+      }
+
+      if (data.interpretation) {
+        const interp = data.interpretation;
+        if (interp.missingRequiredParameters && interp.missingRequiredParameters.length > 0) {
+          const missingNames = interp.missingRequiredParameters.join(', ');
+          const unknowns = interp.unknowns && interp.unknowns.length > 0
+            ? ` | Unknowns sought: ${interp.unknowns.join(', ')}`
+            : '';
+          const constraints = interp.constraints && interp.constraints.length > 0
+            ? ` | Constraints: ${interp.constraints.join(', ')}`
+            : '';
+          showFeedback(
+            `✕ Missing required parameter(s): ${missingNames}. Mechanica requires initial velocity, launch angle, and gravity to simulate.${unknowns}${constraints}`,
+            'warning'
+          );
+          return;
+        }
+
+        if (interp.isContradictory) {
+          showFeedback(
+            `✕ Contradiction detected: ${interp.contradictionReason || 'Conflicting parameter values or physical statements.'}`,
+            'error'
+          );
+          return;
+        }
+
+        if (!interp.isSupported) {
+          showFeedback(
+            `✕ Unsupported physics: ${interp.unsupportedReason || 'Requires physics phenomena not currently supported by Mechanica\'s ideal 2D projectile motion engine.'}`,
+            'error'
+          );
+          return;
+        }
+
+        if (interp.isAmbiguous) {
+          showFeedback(
+            `✕ Ambiguous input: ${interp.ambiguityReason || 'Question is underspecified or missing units.'}`,
+            'warning'
+          );
+          return;
+        }
+      }
+
+      if (data.errors && data.errors.length > 0) {
+        showFeedback(`✕ ${data.errors.join(' • ')}`, 'error');
+        return;
+      }
+
+      showFeedback(
+        `✕ ${data.error || 'Could not extract valid projectile motion parameters from question.'}`,
+        'error'
+      );
+    } catch (err) {
+      // Network or server communication error: attempt local fallback
+      const localFallback = parseCustomSimulationInput(rawVal);
+      if (localFallback.valid) {
+        launchSimulation(localFallback.spec, 'Parsed via local fallback');
+        return;
+      }
+      showFeedback(`✕ Could not communicate with AI interpretation endpoint: ${err.message}`, 'error');
+    } finally {
+      if (launchBtn) {
+        launchBtn.disabled = false;
+        launchBtn.style.opacity = '';
+      }
+      input.focus();
+    }
   });
 }
 

@@ -1,8 +1,10 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
+import { mechanicaGeminiApiPlugin } from "./server/vitePlugin.js";
 
 export default defineConfig({
   root: "app",
+  plugins: [mechanicaGeminiApiPlugin()],
   test: {
     root: ".",
     include: ["spec/__tests__/**/*.test.js"],
@@ -18,3 +20,4 @@ export default defineConfig({
     },
   },
 });
+

@@ -1386,6 +1386,18 @@ img {
   border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
+.custom-sim__feedback--loading {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.custom-sim__feedback--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
 .custom-sim__footer {
   display: flex;
   align-items: center;
