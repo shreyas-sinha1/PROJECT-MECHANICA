@@ -88,10 +88,34 @@ export function parseCustomSimulationInput(raw) {
       const lk = parts[0].trim().toLowerCase().replace(/[-_]/g, "");
       const num = Number(parts[1].trim());
       if (["initialvelocity", "velocity", "v", "speed", "u"].includes(lk)) {
+        if (params.initialVelocity !== undefined && Math.abs(params.initialVelocity - num) > 1e-4) {
+          return {
+            valid: false,
+            spec: null,
+            errors: [`Contradiction detected: Conflicting initial velocities specified (${params.initialVelocity} and ${num}). Which value is correct?`],
+            warnings: [],
+          };
+        }
         params.initialVelocity = num;
       } else if (["launchangledegrees", "angle", "launchangle", "theta", "deg", "degrees", "a"].includes(lk)) {
+        if (params.launchAngleDegrees !== undefined && Math.abs(params.launchAngleDegrees - num) > 1e-4) {
+          return {
+            valid: false,
+            spec: null,
+            errors: [`Contradiction detected: Conflicting launch angles specified (${params.launchAngleDegrees}° and ${num}°). Which value is correct?`],
+            warnings: [],
+          };
+        }
         params.launchAngleDegrees = num;
       } else if (["gravity", "g", "grav"].includes(lk)) {
+        if (params.gravity !== undefined && Math.abs(params.gravity - num) > 1e-4) {
+          return {
+            valid: false,
+            spec: null,
+            errors: [`Contradiction detected: Conflicting gravity values specified (${params.gravity} and ${num}). Which value is correct?`],
+            warnings: [],
+          };
+        }
         params.gravity = num;
       } else if (["launchheight", "height", "h", "initialheight"].includes(lk)) {
         params.launchHeight = num;
@@ -111,17 +135,48 @@ export function parseCustomSimulationInput(raw) {
   // 3. Question / Natural Language extraction
   const params = {};
 
+  // Check for multiple conflicting speeds in text (e.g. 144 km/h and 90 km/h)
+  const speedMatches = [...text.matchAll(/(\d+(?:\.\d+)?)\s*(?:m\/s|ms\^-1|meters?\s+per\s+second|km\/h|kph|mph)\b/gi)];
+  if (speedMatches.length >= 2) {
+    const s1Raw = parseFloat(speedMatches[0][1]);
+    const s1Unit = speedMatches[0][0].toLowerCase().includes("km") ? "km/h" : (speedMatches[0][0].toLowerCase().includes("mph") ? "mph" : "m/s");
+    const s1Norm = s1Unit === "km/h" ? Math.round((s1Raw / 3.6) * 100) / 100 : (s1Unit === "mph" ? Math.round(s1Raw * 0.44704 * 100) / 100 : s1Raw);
+
+    const s2Raw = parseFloat(speedMatches[1][1]);
+    const s2Unit = speedMatches[1][0].toLowerCase().includes("km") ? "km/h" : (speedMatches[1][0].toLowerCase().includes("mph") ? "mph" : "m/s");
+    const s2Norm = s2Unit === "km/h" ? Math.round((s2Raw / 3.6) * 100) / 100 : (s2Unit === "mph" ? Math.round(s2Raw * 0.44704 * 100) / 100 : s2Raw);
+
+    if (Math.abs(s1Norm - s2Norm) > 1e-4) {
+      return {
+        valid: false,
+        spec: null,
+        errors: [
+          `Contradiction detected: Conflicting initial speeds specified: ${speedMatches[0][0]} (${s1Norm} m/s) and ${speedMatches[1][0]} (${s2Norm} m/s). Which value is correct?`,
+        ],
+        warnings: [],
+      };
+    }
+  }
+
   // Angle: e.g. "45 deg", "45 degrees", "45°", "angle of 45"
   const angleMatch =
     text.match(/(\d+(?:\.\d+)?)\s*(?:°|deg(?:rees)?)\b/i) ||
     text.match(/(?:angle(?:\s+of)?)\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
   if (angleMatch) params.launchAngleDegrees = Number(angleMatch[1]);
 
-  // Velocity: e.g. "42 m/s", "42 ms^-1", "velocity of 42", "speed 42"
+  // Velocity: e.g. "42 m/s", "42 ms^-1", "144 km/h", "velocity of 42", "speed 42"
   const velMatch =
     text.match(/(\d+(?:\.\d+)?)\s*(?:m\/s|ms\^-1|meters?\s+per\s+second)\b/i) ||
+    text.match(/(\d+(?:\.\d+)?)\s*(?:km\/h|kph)\b/i) ||
     text.match(/(?:velocity|speed)\s*(?:of)?\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-  if (velMatch) params.initialVelocity = Number(velMatch[1]);
+  if (velMatch) {
+    const rawVal = Number(velMatch[1]);
+    if (velMatch[0].toLowerCase().includes("km")) {
+      params.initialVelocity = Math.round((rawVal / 3.6) * 100) / 100;
+    } else {
+      params.initialVelocity = rawVal;
+    }
+  }
 
   // Gravity: e.g. "9.81 m/s²", "gravity 9.81", or planet references
   const gravMatch =

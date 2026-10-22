@@ -1360,6 +1360,35 @@ function initCustomSimulationPipeline() {
 
       if (data.interpretation) {
         const interp = data.interpretation;
+
+        // 1. Contradictions take top priority
+        if (interp.isContradictory) {
+          showFeedback(
+            `✕ Contradiction detected: ${interp.contradictionReason || 'Conflicting parameter values or physical statements. Please clarify which value is correct.'}`,
+            'error'
+          );
+          return;
+        }
+
+        // 2. Unsupported physics
+        if (!interp.isSupported) {
+          showFeedback(
+            `✕ Unsupported physics: ${interp.unsupportedReason || 'Requires physics phenomena not currently supported by Mechanica\'s ideal 2D projectile motion engine.'}`,
+            'error'
+          );
+          return;
+        }
+
+        // 3. Ambiguity
+        if (interp.isAmbiguous) {
+          showFeedback(
+            `✕ Ambiguous input: ${interp.ambiguityReason || 'Question is underspecified or missing units.'}`,
+            'warning'
+          );
+          return;
+        }
+
+        // 4. Genuinely missing required parameters
         if (interp.missingRequiredParameters && interp.missingRequiredParameters.length > 0) {
           const missingNames = interp.missingRequiredParameters.join(', ');
           const unknowns = interp.unknowns && interp.unknowns.length > 0
@@ -1370,30 +1399,6 @@ function initCustomSimulationPipeline() {
             : '';
           showFeedback(
             `✕ Missing required parameter(s): ${missingNames}. Mechanica requires initial velocity, launch angle, and gravity to simulate.${unknowns}${constraints}`,
-            'warning'
-          );
-          return;
-        }
-
-        if (interp.isContradictory) {
-          showFeedback(
-            `✕ Contradiction detected: ${interp.contradictionReason || 'Conflicting parameter values or physical statements.'}`,
-            'error'
-          );
-          return;
-        }
-
-        if (!interp.isSupported) {
-          showFeedback(
-            `✕ Unsupported physics: ${interp.unsupportedReason || 'Requires physics phenomena not currently supported by Mechanica\'s ideal 2D projectile motion engine.'}`,
-            'error'
-          );
-          return;
-        }
-
-        if (interp.isAmbiguous) {
-          showFeedback(
-            `✕ Ambiguous input: ${interp.ambiguityReason || 'Question is underspecified or missing units.'}`,
             'warning'
           );
           return;

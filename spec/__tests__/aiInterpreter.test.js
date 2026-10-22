@@ -447,6 +447,91 @@ describe("Mechanica AI Intelligence Layer (Phase 1) — Gemini Interpreter", () 
       expect(result.errors.some((e) => e.includes("Conflicting initial velocity"))).toBe(true);
     });
 
+    it("flags conflicting initial speeds (144 km/h and 90 km/h), normalizes to 40 m/s and 25 m/s, asks which is correct, and does not report initialVelocity as missing", async () => {
+      const mockClient = createMockGeminiClient({
+        isPhysicsQuestion: true,
+        module: "projectileMotion",
+        isSupported: true,
+        isContradictory: true,
+        contradictionReason: "Conflicting initial speeds detected: 144 km/h (40 m/s) and 90 km/h (25 m/s). Which value is correct?",
+        parameters: {
+          initialVelocity: null,
+          launchAngleDegrees: 35,
+          gravity: 9.81,
+          launchHeight: 0,
+        },
+        missingRequiredParameters: [],
+        requestedOutputs: ["range"],
+        unknowns: [],
+        constraints: [],
+        unitConversions: [
+          { originalText: "144 km/h", parameter: "initialVelocity", convertedValue: 40, convertedUnit: "m/s" },
+          { originalText: "90 km/h", parameter: "initialVelocity", convertedValue: 25, convertedUnit: "m/s" },
+        ],
+        canLaunch: false,
+        explanation: "Contradiction: Two conflicting speeds provided for the launch.",
+      });
+
+      const prompt = "A cannon fires a ball with speed 144 km/h and 90 km/h at an angle of 35 degrees on Earth. How far will it go?";
+      const result = await interpretPhysicsQuestion(prompt, { client: mockClient });
+
+      // 1. Must not launch
+      expect(result.canLaunch).toBe(false);
+
+      // 2. Must flag contradiction
+      expect(result.interpretation.isContradictory).toBe(true);
+
+      // 3. Must NOT report initialVelocity as missing in missingRequiredParameters
+      expect(result.interpretation.missingRequiredParameters).not.toContain("initialVelocity");
+      expect(result.errors.some((e) => e.includes("Missing required parameter: initialVelocity"))).toBe(false);
+
+      // 4. Must normalize both values to 40 m/s and 25 m/s in unit conversions
+      const convs = result.interpretation.unitConversions;
+      const conv40 = convs.find((c) => Math.abs(c.convertedValue - 40) < 0.1);
+      const conv25 = convs.find((c) => Math.abs(c.convertedValue - 25) < 0.1);
+      expect(conv40).toBeDefined();
+      expect(conv25).toBeDefined();
+
+      // 5. Must identify conflicting values and ask user which is correct
+      expect(result.interpretation.contradictionReason).toMatch(/144\s*km\/h/i);
+      expect(result.interpretation.contradictionReason).toMatch(/90\s*km\/h/i);
+      expect(result.interpretation.contradictionReason).toMatch(/which.*correct/i);
+    });
+
+    it("correctly separates contradictory parameters from genuinely missing parameters", async () => {
+      const mockClient = createMockGeminiClient({
+        isPhysicsQuestion: true,
+        module: "projectileMotion",
+        isSupported: true,
+        isContradictory: true,
+        contradictionReason: "Conflicting initial speeds specified: 144 km/h (40 m/s) and 90 km/h (25 m/s). Which value is correct?",
+        parameters: {
+          initialVelocity: null,
+          launchAngleDegrees: null, // Genuinely omitted!
+          gravity: 9.81,
+          launchHeight: 0,
+        },
+        missingRequiredParameters: ["launchAngleDegrees"],
+        requestedOutputs: [],
+        unknowns: [],
+        constraints: [],
+        unitConversions: [],
+        canLaunch: false,
+        explanation: "Speeds conflict and launch angle is missing.",
+      });
+
+      const prompt = "A ball is launched with speeds 144 km/h and 90 km/h under Earth gravity.";
+      const result = await interpretPhysicsQuestion(prompt, { client: mockClient });
+
+      expect(result.canLaunch).toBe(false);
+      expect(result.interpretation.isContradictory).toBe(true);
+      // initialVelocity is contradictory, NOT in missingRequiredParameters
+      expect(result.interpretation.missingRequiredParameters).not.toContain("initialVelocity");
+      // launchAngleDegrees was genuinely missing, so it IS in missingRequiredParameters
+      expect(result.interpretation.missingRequiredParameters).toContain("launchAngleDegrees");
+      expect(result.errors.some((e) => e.includes("launchAngleDegrees"))).toBe(true);
+    });
+
     it("flags contradictory launch directions (horizontal at 45 degrees)", async () => {
       const mockClient = createMockGeminiClient({
         isPhysicsQuestion: true,
@@ -459,7 +544,7 @@ describe("Mechanica AI Intelligence Layer (Phase 1) — Gemini Interpreter", () 
           launchAngleDegrees: null,
           gravity: 9.81,
         },
-        missingRequiredParameters: ["launchAngleDegrees"],
+        missingRequiredParameters: [],
         requestedOutputs: [],
         unknowns: [],
         constraints: [],
@@ -473,6 +558,7 @@ describe("Mechanica AI Intelligence Layer (Phase 1) — Gemini Interpreter", () 
 
       expect(result.canLaunch).toBe(false);
       expect(result.interpretation.isContradictory).toBe(true);
+      expect(result.interpretation.missingRequiredParameters).not.toContain("launchAngleDegrees");
     });
   });
 

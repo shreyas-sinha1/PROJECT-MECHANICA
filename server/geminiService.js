@@ -62,7 +62,12 @@ RULES FOR EXTRACTION & NORMALIZATION:
    - The simulation CANNOT be launched when any required parameter is missing.
 
 4. CONTRADICTIONS:
-   - If the input contains conflicting values for the same parameter (e.g., "initial speed 20 m/s and launch speed 50 m/s", "launched at 30° and 60°", "horizontal launch at 45 degrees"), set isContradictory = true and explain in 'contradictionReason'.
+   - If the input contains conflicting values for the same parameter (e.g., conflicting initial speeds such as 144 km/h and 90 km/h, conflicting angles such as 30° and 60°, or horizontal launch at 45 degrees):
+     * Set isContradictory = true.
+     * In 'contradictionReason', clearly identify the conflicting values, include their normalized values in canonical units (e.g., 144 km/h = 40 m/s vs 90 km/h = 25 m/s), and ask the user which value is correct (e.g., "Conflicting initial speeds specified: 144 km/h (40 m/s) and 90 km/h (25 m/s). Which value is correct?").
+     * In 'unitConversions', normalize ALL provided conflicting values into canonical units (e.g., both 144 km/h -> 40 m/s and 90 km/h -> 25 m/s).
+     * Do NOT list contradictory parameters under 'missingRequiredParameters'; conflicting parameters are contradictory, NOT missing.
+     * Set canLaunch = false.
 
 5. AMBIGUITY:
    - If values lack essential units (e.g., "speed of 30"), or terms are vague/underspecified without clear physical meaning (e.g., "thrown fast at an angle"), set isAmbiguous = true and explain in 'ambiguityReason'.
@@ -128,7 +133,7 @@ export const GEMINI_RESPONSE_SCHEMA = {
     },
     contradictionReason: {
       type: Type.STRING,
-      description: "Explanation of the contradiction, or null/empty if consistent.",
+      description: "Explanation of the contradiction identifying the conflicting values, their normalized forms, and asking the user which value is correct. Null/empty if consistent.",
     },
     parameters: {
       type: Type.OBJECT,
@@ -366,11 +371,37 @@ export async function interpretPhysicsQuestion(prompt, options = {}) {
     );
   }
 
+  // Handle contradiction post-processing
   if (interpretation.isContradictory) {
-    errors.push(
-      interpretation.contradictionReason ||
-        "Contradictory parameter values or physical statements were detected."
-    );
+    let reason = interpretation.contradictionReason || "Contradictory parameter values or physical statements were detected.";
+    if (!reason.includes("?") && !reason.toLowerCase().includes("which")) {
+      reason += " Which value is correct?";
+    }
+    interpretation.contradictionReason = reason;
+    errors.push(reason);
+
+    // Ensure all non-canonical units for conflicting values in prompt are normalized in unitConversions
+    const speedMatches = [...trimmedPrompt.matchAll(/(\d+(?:\.\d+)?)\s*(km\/h|kph|mph)\b/gi)];
+    for (const match of speedMatches) {
+      const origText = match[0];
+      const val = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      let convertedVal = val;
+      if (unit === "km/h" || unit === "kph") convertedVal = Math.round((val / 3.6) * 100) / 100;
+      else if (unit === "mph") convertedVal = Math.round(val * 0.44704 * 100) / 100;
+
+      const alreadyRecorded = interpretation.unitConversions.some(
+        (c) => c.originalText.toLowerCase() === origText.toLowerCase()
+      );
+      if (!alreadyRecorded) {
+        interpretation.unitConversions.push({
+          originalText: origText,
+          parameter: "initialVelocity",
+          convertedValue: convertedVal,
+          convertedUnit: "m/s",
+        });
+      }
+    }
   }
 
   if (interpretation.isAmbiguous) {
@@ -380,23 +411,60 @@ export async function interpretPhysicsQuestion(prompt, options = {}) {
     );
   }
 
-  // Verify required parameters presence
+  // Determine if a parameter is contradictory rather than genuinely missing
+  const contradictionText = (interpretation.contradictionReason || "").toLowerCase();
+  const isVelocityContradictory = interpretation.isContradictory && (
+    contradictionText.includes("velocity") ||
+    contradictionText.includes("speed") ||
+    contradictionText.includes("km/h") ||
+    contradictionText.includes("m/s") ||
+    contradictionText.includes("mph") ||
+    [...trimmedPrompt.matchAll(/\b\d+(?:\.\d+)?\s*(km\/h|kph|m\/s|mph)\b/gi)].length >= 2
+  );
+  const isAngleContradictory = interpretation.isContradictory && (
+    contradictionText.includes("angle") ||
+    contradictionText.includes("degree") ||
+    contradictionText.includes("horizontal") ||
+    contradictionText.includes("vertical") ||
+    [...trimmedPrompt.matchAll(/\b\d+(?:\.\d+)?\s*(?:°|deg(?:rees)?)\b/gi)].length >= 2
+  );
+  const isGravityContradictory = interpretation.isContradictory && (
+    contradictionText.includes("gravity") ||
+    contradictionText.includes("m/s²") ||
+    contradictionText.includes("ms^-2")
+  );
+
+  // Filter missingRequiredParameters to exclude contradictory parameters
   const params = interpretation.parameters;
-  const missing = new Set(interpretation.missingRequiredParameters);
+  const missing = new Set(
+    (interpretation.missingRequiredParameters || []).filter((param) => {
+      if (param === "initialVelocity" && isVelocityContradictory) return false;
+      if (param === "launchAngleDegrees" && isAngleContradictory) return false;
+      if (param === "gravity" && isGravityContradictory) return false;
+      return true;
+    })
+  );
 
-  if (params.initialVelocity === null || params.initialVelocity === undefined || !Number.isFinite(params.initialVelocity)) {
-    missing.add("initialVelocity");
-    errors.push("Missing required parameter: initialVelocity (launch speed). Mechanica cannot simulate without an initial velocity.");
+  // Verify genuinely missing required parameters (only if not contradictory)
+  if (!isVelocityContradictory) {
+    if (params.initialVelocity === null || params.initialVelocity === undefined || !Number.isFinite(params.initialVelocity)) {
+      missing.add("initialVelocity");
+      errors.push("Missing required parameter: initialVelocity (launch speed). Mechanica cannot simulate without an initial velocity.");
+    }
   }
 
-  if (params.launchAngleDegrees === null || params.launchAngleDegrees === undefined || !Number.isFinite(params.launchAngleDegrees)) {
-    missing.add("launchAngleDegrees");
-    errors.push("Missing required parameter: launchAngleDegrees. Mechanica cannot simulate without a launch angle.");
+  if (!isAngleContradictory) {
+    if (params.launchAngleDegrees === null || params.launchAngleDegrees === undefined || !Number.isFinite(params.launchAngleDegrees)) {
+      missing.add("launchAngleDegrees");
+      errors.push("Missing required parameter: launchAngleDegrees. Mechanica cannot simulate without a launch angle.");
+    }
   }
 
-  if (params.gravity === null || params.gravity === undefined || !Number.isFinite(params.gravity)) {
-    missing.add("gravity");
-    errors.push("Missing required parameter: gravity.");
+  if (!isGravityContradictory) {
+    if (params.gravity === null || params.gravity === undefined || !Number.isFinite(params.gravity)) {
+      missing.add("gravity");
+      errors.push("Missing required parameter: gravity.");
+    }
   }
 
   interpretation.missingRequiredParameters = Array.from(missing);

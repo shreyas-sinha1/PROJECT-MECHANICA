@@ -98,4 +98,23 @@ describe("Custom Simulation Input Parser", () => {
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toMatch(/out of range/i);
   });
+
+  it("detects contradiction in shorthand key-values with conflicting velocities", () => {
+    const raw = "v=40, v=25, a=45, g=9.81";
+    const result = parseCustomSimulationInput(raw);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toMatch(/contradiction/i);
+    expect(result.errors[0]).toMatch(/conflicting initial velocities/i);
+  });
+
+  it("detects contradiction in natural language fallback with conflicting speeds (144 km/h vs 90 km/h)", () => {
+    const raw = "A cannon is fired with speeds 144 km/h and 90 km/h at 45 degrees";
+    const result = parseCustomSimulationInput(raw);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toMatch(/contradiction/i);
+    expect(result.errors[0]).toMatch(/144\s*km\/h/i);
+    expect(result.errors[0]).toMatch(/90\s*km\/h/i);
+    expect(result.errors[0]).toMatch(/which.*correct/i);
+  });
 });
+
