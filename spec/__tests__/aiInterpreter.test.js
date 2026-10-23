@@ -496,6 +496,11 @@ describe("Mechanica AI Intelligence Layer (Phase 1) — Gemini Interpreter", () 
       expect(result.interpretation.contradictionReason).toMatch(/144\s*km\/h/i);
       expect(result.interpretation.contradictionReason).toMatch(/90\s*km\/h/i);
       expect(result.interpretation.contradictionReason).toMatch(/which.*correct/i);
+
+      // 6. Must provide contradictionOptions so user can pick which value to continue with
+      expect(result.interpretation.contradictionOptions.length).toBeGreaterThanOrEqual(2);
+      expect(result.interpretation.contradictionOptions.some((o) => Math.abs(o.value - 40) < 0.1)).toBe(true);
+      expect(result.interpretation.contradictionOptions.some((o) => Math.abs(o.value - 25) < 0.1)).toBe(true);
     });
 
     it("correctly separates contradictory parameters from genuinely missing parameters", async () => {

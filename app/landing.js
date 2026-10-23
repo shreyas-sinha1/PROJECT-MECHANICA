@@ -6,6 +6,11 @@
 import { parseCustomSimulationInput } from "../spec/parser.js";
 import { SPEC_45_DEGREES, SPEC_LUNAR, SPEC_STEEP, SPEC_SHALLOW_FAST } from "../spec/examples.js";
 import { SIMULATION_SPEC_VERSION } from "../spec/simulationSpec.js";
+import {
+  groupContradictionOptions,
+  canResolveContradictions,
+  buildResolvedSimulationSpec,
+} from "../spec/contradictionResolver.js";
 
 // Helper to check current active theme
 function getTheme() {
@@ -102,441 +107,6 @@ function initStarfield() {
   window.addEventListener('mechanica:theme-change', () => {
     draw(0);
   });
-}
-
-// ——— Hero Projectile Simulation (Dual Theme Aware) ———
-function initHeroSim() {
-  const canvas = document.getElementById('heroSimCanvas');
-  if (!canvas) return;
-
-  const ctx = canvas.getContext('2d');
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let w, h;
-
-  // Physics params
-  const v0 = 42;
-  const angle = 42 * (Math.PI / 180);
-  const g = 9.81;
-  const vx = v0 * Math.cos(angle);
-  const vy = v0 * Math.sin(angle);
-  const totalTime = (2 * vy) / g;
-  const range = vx * totalTime;
-  const maxH = (vy * vy) / (2 * g);
-
-  // Animation state
-  let animTime = 0;
-  let isPlaying = true;
-  let animFrameId;
-
-  // Telemetry elements
-  const telTime = document.getElementById('telTime');
-  const telRange = document.getElementById('telRange');
-  const telMaxH = document.getElementById('telMaxH');
-
-  function resize() {
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.parentElement.getBoundingClientRect();
-    w = rect.width;
-    h = rect.height;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
-  function worldToScreen(wx, wy) {
-    const margin = 80;
-    const scaleX = (w - margin * 2) / (range * 1.15);
-    const scaleY = (h - margin * 2) / (maxH * 1.4);
-    const scale = Math.min(scaleX, scaleY);
-    const originX = margin;
-    const originY = h - margin;
-    return {
-      x: originX + wx * scale,
-      y: originY - wy * scale,
-    };
-  }
-
-  function drawGrid(isDark) {
-    const margin = 80;
-    const originX = margin;
-    const originY = h - margin;
-    const gridW = w - margin * 2;
-    const gridH = h - margin * 2;
-
-    const gridSpacing = 40;
-    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.06)' : '#e8ecf0';
-    ctx.lineWidth = 1;
-
-    for (let x = originX; x <= originX + gridW; x += gridSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(x, originY);
-      ctx.lineTo(x, originY - gridH);
-      ctx.stroke();
-    }
-    for (let y = originY; y >= originY - gridH; y -= gridSpacing) {
-      ctx.beginPath();
-      ctx.moveTo(originX, y);
-      ctx.lineTo(originX + gridW, y);
-      ctx.stroke();
-    }
-
-    if (!isDark) {
-      // Major grid line highlight in light theme
-      ctx.strokeStyle = '#d0d6de';
-      for (let x = originX; x <= originX + gridW; x += gridSpacing * 3) {
-        ctx.beginPath(); ctx.moveTo(x, originY); ctx.lineTo(x, originY - gridH); ctx.stroke();
-      }
-      for (let y = originY; y >= originY - gridH; y -= gridSpacing * 3) {
-        ctx.beginPath(); ctx.moveTo(originX, y); ctx.lineTo(originX + gridW, y); ctx.stroke();
-      }
-    }
-
-    // Axes
-    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.22)' : '#2a3138';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(originX, originY);
-    ctx.lineTo(originX + gridW, originY);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(originX, originY);
-    ctx.lineTo(originX, originY - gridH);
-    ctx.stroke();
-
-    // Axis labels
-    ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.5)' : '#5c6570';
-    ctx.font = '10px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Distance (m)', originX + gridW / 2, originY + 32);
-    ctx.save();
-    ctx.translate(originX - 38, originY - gridH / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText('Height (m)', 0, 0);
-    ctx.restore();
-
-    // Tick labels
-    const scaleX = gridW / (range * 1.15);
-    const scaleY = gridH / (maxH * 1.4);
-    const scale = Math.min(scaleX, scaleY);
-
-    ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.35)' : '#8a939e';
-    ctx.font = '9px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    const tickStep = Math.pow(10, Math.floor(Math.log10(range / 4)));
-    const niceStep = range / 4 > tickStep * 5 ? tickStep * 5 : tickStep * 2;
-    for (let val = 0; val <= range * 1.1; val += niceStep) {
-      const sx = originX + val * scale;
-      if (sx > originX && sx < originX + gridW) {
-        ctx.fillText(Math.round(val) + '', sx, originY + 16);
-      }
-    }
-
-    ctx.textAlign = 'right';
-    for (let val = 0; val <= maxH * 1.3; val += niceStep) {
-      const sy = originY - val * scale;
-      if (sy < originY && sy > originY - gridH) {
-        ctx.fillText(Math.round(val) + '', originX - 8, sy + 3);
-      }
-    }
-  }
-
-  function drawTrajectory(t, isDark) {
-    const points = [];
-    const steps = 120;
-    const tEnd = Math.min(t, totalTime);
-
-    for (let i = 0; i <= steps; i++) {
-      const ti = (i / steps) * tEnd;
-      const wx = vx * ti;
-      const wy = vy * ti - 0.5 * g * ti * ti;
-      if (wy < 0) break;
-      points.push(worldToScreen(wx, Math.max(0, wy)));
-    }
-
-    if (points.length < 2) return;
-
-    // Glow aura
-    ctx.save();
-    ctx.strokeStyle = isDark ? 'rgba(96, 165, 250, 0.18)' : 'rgba(47, 107, 114, 0.16)';
-    ctx.lineWidth = isDark ? 8 : 6;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
-    ctx.stroke();
-    ctx.restore();
-
-    // Solid trajectory curve
-    if (isDark) {
-      const gradient = ctx.createLinearGradient(
-        points[0].x, points[0].y,
-        points[points.length - 1].x, points[points.length - 1].y
-      );
-      gradient.addColorStop(0, '#3b82f6');
-      gradient.addColorStop(0.5, '#8b5cf6');
-      gradient.addColorStop(1, '#22d3ee');
-      ctx.strokeStyle = gradient;
-    } else {
-      ctx.strokeStyle = '#2f6b72';
-    }
-
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
-    ctx.stroke();
-
-    // Dashed future prediction trajectory
-    if (t < totalTime) {
-      const futurePoints = [];
-      for (let i = 0; i <= steps; i++) {
-        const ti = tEnd + (i / steps) * (totalTime - tEnd);
-        const wx = vx * ti;
-        const wy = vy * ti - 0.5 * g * ti * ti;
-        if (wy < 0) break;
-        futurePoints.push(worldToScreen(wx, Math.max(0, wy)));
-      }
-      if (futurePoints.length > 1) {
-        ctx.setLineDash([4, 6]);
-        ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.18)' : '#7a9aa0';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(futurePoints[0].x, futurePoints[0].y);
-        for (let i = 1; i < futurePoints.length; i++) {
-          ctx.lineTo(futurePoints[i].x, futurePoints[i].y);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-  }
-
-  function drawProjectile(t, isDark) {
-    const tClamped = Math.min(t, totalTime);
-    const wx = vx * tClamped;
-    const wy = Math.max(0, vy * tClamped - 0.5 * g * tClamped * tClamped);
-    const pos = worldToScreen(wx, wy);
-
-    if (isDark) {
-      // Dark navy projectile glow
-      const glowGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 24);
-      glowGrad.addColorStop(0, 'rgba(96, 165, 250, 0.35)');
-      glowGrad.addColorStop(1, 'rgba(96, 165, 250, 0)');
-      ctx.fillStyle = glowGrad;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 24, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#60a5fa';
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // Light blueprint projectile
-      ctx.fillStyle = 'rgba(21, 24, 28, 0.12)';
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y + 2, 8, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#15181c';
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Velocity vector
-    if (tClamped < totalTime) {
-      const currentVx = vx;
-      const currentVy = vy - g * tClamped;
-      const speed = Math.sqrt(currentVx * currentVx + currentVy * currentVy);
-      const arrowLen = 40;
-      const ex = pos.x + (currentVx / speed) * arrowLen;
-      const ey = pos.y - (currentVy / speed) * arrowLen;
-
-      const vColor = isDark ? 'rgba(96, 165, 250, 0.85)' : '#2a5f9e';
-      ctx.strokeStyle = vColor;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(pos.x, pos.y);
-      ctx.lineTo(ex, ey);
-      ctx.stroke();
-
-      // Arrowhead
-      const headLen = 8;
-      const angleA = Math.atan2(pos.y - ey, pos.x - ex);
-      ctx.fillStyle = vColor;
-      ctx.beginPath();
-      ctx.moveTo(ex, ey);
-      ctx.lineTo(ex + headLen * Math.cos(angleA + 0.4), ey + headLen * Math.sin(angleA + 0.4));
-      ctx.lineTo(ex + headLen * Math.cos(angleA - 0.4), ey + headLen * Math.sin(angleA - 0.4));
-      ctx.closePath();
-      ctx.fill();
-
-      // Label
-      ctx.fillStyle = isDark ? '#93c5fd' : '#2a5f9e';
-      ctx.font = '600 10px Inter, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('v = ' + speed.toFixed(1) + ' m/s', ex + 8, ey - 4);
-    }
-
-    // Gravity vector
-    const gArrowLen = 30;
-    const gColor = isDark ? 'rgba(239, 68, 68, 0.7)' : '#9a4034';
-    ctx.strokeStyle = gColor;
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-    ctx.lineTo(pos.x, pos.y + gArrowLen);
-    ctx.stroke();
-
-    const gHeadLen = 6;
-    ctx.fillStyle = gColor;
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y + gArrowLen);
-    ctx.lineTo(pos.x - gHeadLen * 0.5, pos.y + gArrowLen - gHeadLen);
-    ctx.lineTo(pos.x + gHeadLen * 0.5, pos.y + gArrowLen - gHeadLen);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = isDark ? '#f87171' : '#9a4034';
-    ctx.font = '600 9px Inter, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('g', pos.x + 8, pos.y + gArrowLen - 2);
-  }
-
-  function drawGroundPlane(isDark) {
-    const margin = 80;
-    const originY = h - margin;
-
-    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.16)' : '#2a3138';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(margin, originY);
-    ctx.lineTo(w - margin, originY);
-    ctx.stroke();
-
-    ctx.strokeStyle = isDark ? 'rgba(148, 163, 184, 0.06)' : 'rgba(42, 49, 56, 0.12)';
-    ctx.lineWidth = 1;
-    for (let x = margin; x < w - margin; x += 12) {
-      ctx.beginPath();
-      ctx.moveTo(x, originY);
-      ctx.lineTo(x - 8, originY + 8);
-      ctx.stroke();
-    }
-  }
-
-  function drawOriginMarker(isDark) {
-    const origin = worldToScreen(0, 0);
-    ctx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.45)' : '#8a939e';
-    ctx.font = '9px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('O', origin.x, origin.y + 24);
-  }
-
-  function updateTelemetry(t) {
-    const tClamped = Math.min(t, totalTime);
-    const currentX = vx * tClamped;
-    const currentMaxH = (vy * vy) / (2 * g);
-    if (telTime) telTime.textContent = tClamped.toFixed(2);
-    if (telRange) telRange.textContent = currentX.toFixed(1);
-    if (telMaxH) telMaxH.textContent = (tClamped >= totalTime / 2 ? currentMaxH : (vy * tClamped - 0.5 * g * tClamped * tClamped)).toFixed(1);
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, w, h);
-    const isDark = getTheme() === 'dark';
-
-    if (isDark) {
-      // Original Dark Navy Canvas Gradient
-      const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.75);
-      bgGrad.addColorStop(0, '#0e1322');
-      bgGrad.addColorStop(1, '#06080d');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, w, h);
-    } else {
-      // Light Blueprint Paper Canvas
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-    }
-
-    drawGrid(isDark);
-    drawGroundPlane(isDark);
-    drawOriginMarker(isDark);
-    drawTrajectory(animTime, isDark);
-    drawProjectile(animTime, isDark);
-    updateTelemetry(animTime);
-
-    if (isPlaying && animTime < totalTime + 0.5) {
-      animTime += 0.025;
-      if (!prefersReducedMotion) {
-        animFrameId = requestAnimationFrame(draw);
-      }
-    } else if (isPlaying && animTime >= totalTime + 0.5) {
-      isPlaying = false;
-    }
-  }
-
-  function replay() {
-    animTime = 0;
-    isPlaying = true;
-    cancelAnimationFrame(animFrameId);
-    draw();
-  }
-
-  function play() {
-    if (animTime >= totalTime + 0.3) {
-      replay();
-    } else {
-      isPlaying = true;
-      draw();
-    }
-  }
-
-  resize();
-
-  if (prefersReducedMotion) {
-    animTime = totalTime;
-    isPlaying = false;
-    draw();
-  } else {
-    setTimeout(() => draw(), 600);
-  }
-
-  window.addEventListener('resize', () => {
-    resize();
-    const wasPlaying = isPlaying;
-    isPlaying = false;
-    cancelAnimationFrame(animFrameId);
-    draw();
-    if (wasPlaying && animTime < totalTime) {
-      isPlaying = true;
-      draw();
-    }
-  });
-
-  window.addEventListener('mechanica:theme-change', () => {
-    draw();
-  });
-
-  // Controls
-  const playBtn = document.getElementById('heroPlayBtn');
-  const replayBtn = document.getElementById('heroReplayBtn');
-  if (playBtn) playBtn.addEventListener('click', play);
-  if (replayBtn) replayBtn.addEventListener('click', replay);
 }
 
 // ——— Demo Section Simulation (Dual Theme Aware) ———
@@ -1278,6 +848,127 @@ function initCustomSimulationPipeline() {
     }
   }
 
+  function showContradictionWithChoices(interp, rawVal) {
+    if (!feedback) return;
+    feedback.className = `custom-sim__feedback custom-sim__feedback--error`;
+    feedback.innerHTML = '';
+
+    const msgEl = document.createElement('div');
+    msgEl.className = 'custom-sim__feedback-msg';
+    msgEl.textContent = `✕ Contradiction detected: ${interp.contradictionReason || 'Conflicting parameter values or physical statements.'}`;
+    feedback.appendChild(msgEl);
+
+    const options = interp.contradictionOptions || [];
+    const grouped = groupContradictionOptions(options);
+    const conflictingParams = Object.keys(grouped);
+
+    if (conflictingParams.length > 0) {
+      const actionsEl = document.createElement('div');
+      actionsEl.className = 'custom-sim__contradiction-actions';
+
+      // Keep user selections: { [paramKey]: { value: number, label: string } }
+      const selections = {};
+
+      // Container for Continue button (hidden until all conflicts are resolved)
+      const continueContainer = document.createElement('div');
+      continueContainer.className = 'custom-sim__continue-container';
+      continueContainer.style.display = 'none';
+
+      const continueBtn = document.createElement('button');
+      continueBtn.type = 'button';
+      continueBtn.className = 'custom-sim__continue-btn';
+      continueBtn.textContent = 'Continue to Simulation →';
+      continueContainer.appendChild(continueBtn);
+
+      function updateContinueState() {
+        const canContinue = canResolveContradictions(conflictingParams, selections);
+        continueContainer.style.display = canContinue ? 'flex' : 'none';
+      }
+
+      // Render independent selection row for each conflicting parameter
+      conflictingParams.forEach((paramKey) => {
+        const paramOptions = grouped[paramKey];
+
+        const rowEl = document.createElement('div');
+        rowEl.className = 'custom-sim__contradiction-row';
+
+        const promptLabel = document.createElement('span');
+        promptLabel.className = 'custom-sim__contradiction-prompt';
+        promptLabel.textContent = `Choose ${paramKey}:`;
+        rowEl.appendChild(promptLabel);
+
+        const groupEl = document.createElement('div');
+        groupEl.className = 'custom-sim__choice-group';
+
+        const btnList = [];
+
+        paramOptions.forEach((opt) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'custom-sim__choice-btn';
+          btn.textContent = `Use ${opt.label}`;
+          btn.title = `Simulate with ${opt.parameter} = ${opt.value}`;
+
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // Deselect any previous choice for this parameter
+            btnList.forEach((b) => b.classList.remove('is-selected'));
+
+            // Highlight selected value green
+            btn.classList.add('is-selected');
+
+            // Record selection
+            selections[paramKey] = {
+              value: opt.value,
+              label: opt.label,
+            };
+
+            // Update Continue button visibility
+            updateContinueState();
+          });
+
+          btnList.push(btn);
+          groupEl.appendChild(btn);
+        });
+
+        rowEl.appendChild(groupEl);
+        actionsEl.appendChild(rowEl);
+      });
+
+      // Launch simulation ONLY when Continue is clicked
+      continueBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+
+        const result = buildResolvedSimulationSpec(
+          interp.parameters || {},
+          conflictingParams,
+          selections,
+          {
+            description: `${rawVal} [Resolved contradiction]`,
+            requestedOutputs: interp.requestedOutputs || [],
+          }
+        );
+
+        if (!result.valid) {
+          showFeedback(`✕ ${result.errors.join(' ')}`, 'error');
+          return;
+        }
+
+        const summary = conflictingParams
+          .map((p) => `${p} = ${selections[p].label || selections[p].value}`)
+          .join(', ');
+
+        launchSimulation(result.spec, `Resolved contradictions (${summary})`);
+      });
+
+      actionsEl.appendChild(continueContainer);
+      feedback.appendChild(actionsEl);
+    }
+
+    feedback.style.display = 'block';
+  }
+
   // Handle launch
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1312,6 +1003,9 @@ function initCustomSimulationPipeline() {
       const kvResult = parseCustomSimulationInput(rawVal);
       if (kvResult.valid) {
         launchSimulation(kvResult.spec, 'Valid shorthand parameters');
+        return;
+      } else if (kvResult.errors && kvResult.errors[0]?.toLowerCase().includes('contradiction')) {
+        showFeedback(`✕ ${kvResult.errors[0]}`, 'error');
         return;
       }
     }
@@ -1361,12 +1055,9 @@ function initCustomSimulationPipeline() {
       if (data.interpretation) {
         const interp = data.interpretation;
 
-        // 1. Contradictions take top priority
+        // 1. Contradictions take top priority with interactive choice buttons
         if (interp.isContradictory) {
-          showFeedback(
-            `✕ Contradiction detected: ${interp.contradictionReason || 'Conflicting parameter values or physical statements. Please clarify which value is correct.'}`,
-            'error'
-          );
+          showContradictionWithChoices(interp, rawVal);
           return;
         }
 
@@ -1436,7 +1127,6 @@ function initCustomSimulationPipeline() {
 document.addEventListener('DOMContentLoaded', () => {
   initThemeToggle();
   initStarfield();
-  initHeroSim();
   initDemoSim();
   initStudentVisual();
   initTeacherVisual();

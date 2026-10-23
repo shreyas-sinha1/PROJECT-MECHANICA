@@ -66,6 +66,7 @@ RULES FOR EXTRACTION & NORMALIZATION:
      * Set isContradictory = true.
      * In 'contradictionReason', clearly identify the conflicting values, include their normalized values in canonical units (e.g., 144 km/h = 40 m/s vs 90 km/h = 25 m/s), and ask the user which value is correct (e.g., "Conflicting initial speeds specified: 144 km/h (40 m/s) and 90 km/h (25 m/s). Which value is correct?").
      * In 'unitConversions', normalize ALL provided conflicting values into canonical units (e.g., both 144 km/h -> 40 m/s and 90 km/h -> 25 m/s).
+     * In 'contradictionOptions', provide the conflicting options for the user to choose from (e.g., [{ parameter: "initialVelocity", label: "40 m/s (144 km/h)", value: 40, originalText: "144 km/h" }, { parameter: "initialVelocity", label: "25 m/s (90 km/h)", value: 25, originalText: "90 km/h" }]).
      * Do NOT list contradictory parameters under 'missingRequiredParameters'; conflicting parameters are contradictory, NOT missing.
      * Set canLaunch = false.
 
@@ -134,6 +135,20 @@ export const GEMINI_RESPONSE_SCHEMA = {
     contradictionReason: {
       type: Type.STRING,
       description: "Explanation of the contradiction identifying the conflicting values, their normalized forms, and asking the user which value is correct. Null/empty if consistent.",
+    },
+    contradictionOptions: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          parameter: { type: Type.STRING },
+          label: { type: Type.STRING },
+          value: { type: Type.NUMBER },
+          originalText: { type: Type.STRING },
+        },
+        required: ["parameter", "label", "value"],
+      },
+      description: "Clickable options for the user to resolve the contradiction if conflicting values were supplied.",
     },
     parameters: {
       type: Type.OBJECT,
@@ -353,6 +368,14 @@ export async function interpretPhysicsQuestion(prompt, options = {}) {
     unitConversions: Array.isArray(parsed.unitConversions)
       ? parsed.unitConversions
       : [],
+    contradictionOptions: Array.isArray(parsed.contradictionOptions)
+      ? parsed.contradictionOptions.map((opt) => ({
+          parameter: opt.parameter,
+          label: opt.label || `${opt.value} ${opt.parameter}`,
+          value: Number(opt.value),
+          originalText: opt.originalText || "",
+        }))
+      : [],
     explanation: parsed.explanation || "",
   };
 
@@ -433,6 +456,43 @@ export async function interpretPhysicsQuestion(prompt, options = {}) {
     contradictionText.includes("m/s²") ||
     contradictionText.includes("ms^-2")
   );
+
+  // If contradictionOptions not populated, synthesize from prompt
+  if (interpretation.isContradictory && interpretation.contradictionOptions.length < 2) {
+    if (isVelocityContradictory) {
+      const speedMatchesAll = [...trimmedPrompt.matchAll(/(\d+(?:\.\d+)?)\s*(km\/h|kph|mph|m\/s)\b/gi)];
+      if (speedMatchesAll.length >= 2) {
+        interpretation.contradictionOptions = speedMatchesAll.map((m) => {
+          const raw = parseFloat(m[1]);
+          const unit = m[2].toLowerCase();
+          let norm = raw;
+          if (unit === "km/h" || unit === "kph") norm = Math.round((raw / 3.6) * 100) / 100;
+          else if (unit === "mph") norm = Math.round(raw * 0.44704 * 100) / 100;
+          const orig = m[0];
+          const label = unit !== "m/s" ? `${norm} m/s (${orig})` : `${norm} m/s`;
+          return {
+            parameter: "initialVelocity",
+            label,
+            value: norm,
+            originalText: orig,
+          };
+        });
+      }
+    } else if (isAngleContradictory) {
+      const angleMatchesAll = [...trimmedPrompt.matchAll(/(\d+(?:\.\d+)?)\s*(?:°|deg(?:rees)?)\b/gi)];
+      if (angleMatchesAll.length >= 2) {
+        interpretation.contradictionOptions = angleMatchesAll.map((m) => {
+          const val = Number(m[1]);
+          return {
+            parameter: "launchAngleDegrees",
+            label: `${val}°`,
+            value: val,
+            originalText: m[0],
+          };
+        });
+      }
+    }
+  }
 
   // Filter missingRequiredParameters to exclude contradictory parameters
   const params = interpretation.parameters;
