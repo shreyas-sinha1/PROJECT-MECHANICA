@@ -1010,14 +1010,14 @@ function initCustomSimulationPipeline() {
       }
     }
 
-    // 3. Natural language physics question -> Gemini AI Layer
+    // 3. Natural language physics question -> AI Interpretation Layer
     const launchBtn = document.getElementById('customSimLaunchBtn');
     if (launchBtn) {
       launchBtn.disabled = true;
       launchBtn.style.opacity = '0.6';
     }
 
-    showFeedback('Interpreting physics question with Gemini AI...', 'loading');
+    showFeedback('Interpreting physics question with AI...', 'loading');
 
     try {
       const response = await fetch('/api/interpret', {
@@ -1033,7 +1033,8 @@ function initCustomSimulationPipeline() {
         const convText = conversions.length > 0
           ? ` [Normalized: ${conversions.map((c) => `${c.originalText} → ${c.convertedValue} ${c.convertedUnit}`).join(', ')}]`
           : '';
-        launchSimulation(data.spec, `Interpreted by Gemini AI${convText}`);
+        const modelLabel = data.providerLabel || (data.model ? `${data.provider === 'tinfoil' ? 'Tinfoil AI' : 'Gemini AI'} (${data.model})` : (data.provider === 'tinfoil' ? 'Tinfoil AI' : 'AI'));
+        launchSimulation(data.spec, `Interpreted by ${modelLabel}${convText}`);
         return;
       }
 
@@ -1042,11 +1043,11 @@ function initCustomSimulationPipeline() {
         // Fallback to local regex parser if available
         const localFallback = parseCustomSimulationInput(rawVal);
         if (localFallback.valid) {
-          launchSimulation(localFallback.spec, 'Parsed via local fallback (GEMINI_API_KEY not configured)');
+          launchSimulation(localFallback.spec, `Parsed via local fallback (${data.error || 'API key not configured'})`);
           return;
         }
         showFeedback(
-          '✕ Gemini API key not found. Please set GEMINI_API_KEY in your .env file to enable AI natural-language interpretation. (JSON specifications and quick presets still work!)',
+          `✕ ${data.error || 'AI API key not found. Please set TINFOIL_API_KEY (or GEMINI_API_KEY) in your .env file to enable AI natural-language interpretation.'} (JSON specifications and quick presets still work!)`,
           'error'
         );
         return;

@@ -740,6 +740,15 @@ input[type="range"]::-moz-range-thumb {
   color: var(--g-val);
 }
 
+/* Initial launch height dimension label */
+.vector-label--height .vector-label__name {
+  color: var(--v-name, #38bdf8);
+}
+
+.vector-label--height .vector-label__value {
+  color: var(--v-val, #38bdf8);
+}
+
 /* ——— Buttons ——— */
 
 .button-row {

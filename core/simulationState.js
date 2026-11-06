@@ -11,7 +11,8 @@ export function createSimulationState(initialParams = {}) {
     parameters: {
       initialVelocity: initialParams.initialVelocity ?? initialParams.velocity ?? 42,
       launchAngleDegrees: initialParams.launchAngleDegrees ?? initialParams.angle ?? 42,
-      gravity: initialParams.gravity ?? 9.81
+      gravity: initialParams.gravity ?? 9.81,
+      launchHeight: initialParams.launchHeight ?? initialParams.height ?? 0
     },
     predictedTrajectory: [],
     flightMetrics: null,

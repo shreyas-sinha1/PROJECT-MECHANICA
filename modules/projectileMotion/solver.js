@@ -11,9 +11,10 @@ export function calculateInitialVelocityComponents(parameters) {
   };
 }
 
-export function calculateProjectilePoint(time, initialComponents, gravity) {
+export function calculateProjectilePoint(time, initialComponents, gravity, launchHeight = 0) {
+  const h0 = Number(launchHeight) || 0;
   const xPosition = initialComponents.xVelocity * time;
-  const yPosition = (initialComponents.yVelocity * time) - (0.5 * gravity * time * time);
+  const yPosition = h0 + (initialComponents.yVelocity * time) - (0.5 * gravity * time * time);
   const yVelocity = initialComponents.yVelocity - (gravity * time);
   const resultantVelocity = Math.hypot(initialComponents.xVelocity, yVelocity);
 
@@ -28,9 +29,23 @@ export function calculateProjectilePoint(time, initialComponents, gravity) {
   };
 }
 
-export function calculateFlightMetrics(initialComponents, gravity) {
-  const totalFlightTime = initialComponents.yVelocity > 0 ? (2 * initialComponents.yVelocity) / gravity : 0;
-  const maximumHeight = initialComponents.yVelocity > 0 ? (initialComponents.yVelocity * initialComponents.yVelocity) / (2 * gravity) : 0;
+export function calculateFlightMetrics(initialComponents, gravity, launchHeight = 0) {
+  const h0 = Number(launchHeight) || 0;
+  const vy = initialComponents.yVelocity;
+
+  let totalFlightTime = 0;
+  if (gravity > 0) {
+    if (h0 > 0) {
+      // Kinematic quadratic solution for y(t) = h0 + vy*t - 0.5*g*t^2 = 0
+      const discriminant = (vy * vy) + (2 * gravity * h0);
+      totalFlightTime = discriminant > 0 ? (vy + Math.sqrt(discriminant)) / gravity : 0;
+    } else {
+      totalFlightTime = vy > 0 ? (2 * vy) / gravity : 0;
+    }
+  }
+
+  const peakAdditionalHeight = vy > 0 && gravity > 0 ? (vy * vy) / (2 * gravity) : 0;
+  const maximumHeight = h0 + peakAdditionalHeight;
   const range = initialComponents.xVelocity * totalFlightTime;
 
   return {
@@ -42,14 +57,15 @@ export function calculateFlightMetrics(initialComponents, gravity) {
 
 export function calculateTrajectory(parameters, timeStep) {
   const initialComponents = calculateInitialVelocityComponents(parameters);
-  const flightMetrics = calculateFlightMetrics(initialComponents, parameters.gravity);
+  const launchHeight = Number(parameters.launchHeight ?? 0);
+  const flightMetrics = calculateFlightMetrics(initialComponents, parameters.gravity, launchHeight);
   const trajectory = [];
 
   for (let time = 0; time < flightMetrics.totalFlightTime; time += timeStep) {
-    trajectory.push(calculateProjectilePoint(time, initialComponents, parameters.gravity));
+    trajectory.push(calculateProjectilePoint(time, initialComponents, parameters.gravity, launchHeight));
   }
 
-  trajectory.push(calculateProjectilePoint(flightMetrics.totalFlightTime, initialComponents, parameters.gravity));
+  trajectory.push(calculateProjectilePoint(flightMetrics.totalFlightTime, initialComponents, parameters.gravity, launchHeight));
 
   return {
     trajectory,
@@ -59,11 +75,12 @@ export function calculateTrajectory(parameters, timeStep) {
 
 export function createInitialPoint(parameters) {
   const initialComponents = calculateInitialVelocityComponents(parameters);
+  const launchHeight = Number(parameters.launchHeight ?? 0);
 
   return {
     time: 0,
     xPosition: 0,
-    yPosition: 0,
+    yPosition: launchHeight,
     xVelocity: initialComponents.xVelocity,
     yVelocity: initialComponents.yVelocity,
     resultantVelocity: parameters.initialVelocity,

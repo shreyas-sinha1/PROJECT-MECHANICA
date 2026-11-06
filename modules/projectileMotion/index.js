@@ -12,7 +12,8 @@ export function computeProjectileMotion(parameters, timeStep = 1 / 120) {
   const normalizedParams = {
     initialVelocity: parameters.initialVelocity ?? parameters.velocity,
     launchAngleDegrees: parameters.launchAngleDegrees ?? parameters.angle,
-    gravity: parameters.gravity
+    gravity: parameters.gravity,
+    launchHeight: parameters.launchHeight ?? parameters.height ?? 0
   };
 
   const { trajectory, flightMetrics } = solver.calculateTrajectory(normalizedParams, timeStep);

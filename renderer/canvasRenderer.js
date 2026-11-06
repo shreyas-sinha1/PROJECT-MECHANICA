@@ -155,11 +155,74 @@ export function createCanvasRenderer(canvas) {
     drawAxisLabels();
   }
 
-  function drawLaunchPoint() {
+  function drawLaunchPoint(launchHeight = 0) {
+    const launchPos = convertMetersToCanvasPosition({ xPosition: 0, yPosition: launchHeight });
     context.beginPath();
-    context.arc(scale.originX, scale.originY, 5, 0, Math.PI * 2);
+    context.arc(launchPos.x, launchPos.y, 5, 0, Math.PI * 2);
     context.fillStyle = CANVAS_COLORS.launchPoint;
     context.fill();
+  }
+
+  function drawLaunchHeightIndicator(launchHeight = 0) {
+    if (!launchHeight || launchHeight <= 0.01) return;
+
+    const groundY = scale.originY;
+    const launchPos = convertMetersToCanvasPosition({ xPosition: 0, yPosition: launchHeight });
+    const topY = launchPos.y;
+    const arrowX = scale.originX - 20;
+
+    context.save();
+
+    // 1. Column/pillar under launch point
+    context.fillStyle = CANVAS_COLORS.gridMajor || "rgba(148, 163, 184, 0.25)";
+    context.strokeStyle = CANVAS_COLORS.axis;
+    context.lineWidth = 1;
+    context.fillRect(scale.originX - 5, topY, 10, groundY - topY);
+    context.strokeRect(scale.originX - 5, topY, 10, groundY - topY);
+
+    // 2. Double-pointed dimension arrow
+    context.strokeStyle = CANVAS_COLORS.velocity || "#38bdf8";
+    context.fillStyle = CANVAS_COLORS.velocity || "#38bdf8";
+    context.lineWidth = 2;
+
+    context.beginPath();
+    context.moveTo(arrowX, groundY);
+    context.lineTo(arrowX, topY);
+    context.stroke();
+
+    // Top arrow pointing UP
+    const headSize = Math.min(8, Math.max(4, (groundY - topY) * 0.1));
+    context.beginPath();
+    context.moveTo(arrowX, topY);
+    context.lineTo(arrowX - headSize * 0.6, topY + headSize);
+    context.lineTo(arrowX + headSize * 0.6, topY + headSize);
+    context.closePath();
+    context.fill();
+
+    // Bottom arrow pointing DOWN
+    context.beginPath();
+    context.moveTo(arrowX, groundY);
+    context.lineTo(arrowX - headSize * 0.6, groundY - headSize);
+    context.lineTo(arrowX + headSize * 0.6, groundY - headSize);
+    context.closePath();
+    context.fill();
+
+    // Horizontal dimension tick caps
+    context.beginPath();
+    context.moveTo(arrowX - 8, topY);
+    context.lineTo(scale.originX - 5, topY);
+    context.moveTo(arrowX - 8, groundY);
+    context.lineTo(scale.originX - 5, groundY);
+    context.stroke();
+
+    // 3. Distance text written beside the arrow
+    context.font = CANVAS_FONT;
+    context.textAlign = "right";
+    context.textBaseline = "middle";
+    context.fillStyle = CANVAS_COLORS.annotation || "#94a3b8";
+    context.fillText(`${formatNumber(launchHeight)} m`, arrowX - 6, (groundY + topY) / 2);
+
+    context.restore();
   }
 
   function drawTrajectoryPath(visibleTrajectory, strokeColor = CANVAS_COLORS.trajectory) {
@@ -337,7 +400,9 @@ export function createCanvasRenderer(canvas) {
     drawCanvasBackground();
     drawMeasurementGrid();
     drawGroundLine();
-    drawLaunchPoint();
+    const launchHeight = Number(state.parameters?.launchHeight ?? 0);
+    drawLaunchHeightIndicator(launchHeight);
+    drawLaunchPoint(launchHeight);
 
     const isShowingPredicted = state.activeTrajectory.length === 0;
 

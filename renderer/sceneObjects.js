@@ -18,6 +18,7 @@ export const THEMES = {
     axisZ: 0x64748b,   // slate — depth axis
     ground: 0x0e1322,   // deep navy platform
     groundLine: 0x22304a,   // subtle navy grid lines
+    heightIndicator: 0x38bdf8, // dimension indicator arrow
     ambientLight: 0xffffff,
     dirLight: 0xffffff,
   },
@@ -37,6 +38,7 @@ export const THEMES = {
     axisZ: 0x8a939e,   // muted — depth axis
     ground: 0x1b2a38,   // dark charcoal
     groundLine: 0x2c4460,   // subtle lighter lines
+    heightIndicator: 0x0d6fa8, // dimension indicator arrow
     ambientLight: 0xffffff,
     dirLight: 0xffffff,
   }
@@ -147,6 +149,107 @@ export function createLaunchPointMesh() {
   }
 
   return { mesh, setColor };
+}
+
+// ─── Initial height indicator & double-headed dimension arrow ─────────────────
+
+/**
+ * Creates a double-pointed dimension arrow and platform indicator for initial launch height.
+ * @param {number} colour - Hex colour.
+ * @returns {{
+ *   group: THREE.Group,
+ *   update: (height: number, sceneScale?: number) => void,
+ *   getLabelPosition: (height: number, sceneScale?: number) => THREE.Vector3,
+ *   setColor: (c: number) => void
+ * }}
+ */
+export function createLaunchHeightIndicator(colour) {
+  const group = new THREE.Group();
+  group.visible = false;
+
+  const mat = new THREE.MeshBasicMaterial({ color: colour });
+  const lineMat = new THREE.LineBasicMaterial({ color: colour, linewidth: 2 });
+
+  // 1. Column/pedestal under launch point at x=0, z=0
+  const pillarGeo = new THREE.CylinderGeometry(0.5, 0.6, 1, 16);
+  pillarGeo.translate(0, 0.5, 0); // origin at base
+  const pillarMat = new THREE.MeshStandardMaterial({
+    color: 0x334155,
+    roughness: 0.7,
+    metalness: 0.15,
+    transparent: true,
+    opacity: 0.75,
+  });
+  const pillarMesh = new THREE.Mesh(pillarGeo, pillarMat);
+  pillarMesh.castShadow = true;
+  pillarMesh.receiveShadow = true;
+
+  // 2. Double-pointed arrow shaft
+  const shaftGeo = new THREE.CylinderGeometry(0.08, 0.08, 1, 8);
+  shaftGeo.translate(0, 0.5, 0); // origin at base
+  const shaftMesh = new THREE.Mesh(shaftGeo, mat);
+
+  // 3. Top arrow cone (pointing UP)
+  const coneGeo = new THREE.ConeGeometry(0.35, 0.8, 16);
+  const topCone = new THREE.Mesh(coneGeo, mat);
+
+  // 4. Bottom arrow cone (pointing DOWN)
+  const bottomCone = new THREE.Mesh(coneGeo, mat);
+  bottomCone.rotation.z = Math.PI;
+
+  // 5. Horizontal dimension ticks (top and bottom extension lines)
+  const tickGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-0.6, 0, 0),
+    new THREE.Vector3(0.6, 0, 0),
+  ]);
+  const topTick = new THREE.Line(tickGeo, lineMat);
+  const bottomTick = new THREE.Line(tickGeo, lineMat);
+
+  group.add(pillarMesh, shaftMesh, topCone, bottomCone, topTick, bottomTick);
+
+  function update(height, sceneScale = 1) {
+    if (!height || height <= 0.01) {
+      group.visible = false;
+      return;
+    }
+    group.visible = true;
+
+    const baseRad = Math.max(0.35, Math.min(sceneScale * 0.7, 2.5));
+    pillarMesh.scale.set(baseRad / 0.5, height, baseRad / 0.5);
+    pillarMesh.position.set(0, 0, 0);
+
+    const arrowX = -baseRad - Math.max(1.0, sceneScale * 1.2);
+    const headLen = Math.min(1.2, Math.max(0.4, height * 0.15));
+    const headRadius = headLen * 0.42;
+
+    shaftMesh.position.set(arrowX, 0, 0);
+    shaftMesh.scale.set(Math.max(0.6, sceneScale * 0.7), height, Math.max(0.6, sceneScale * 0.7));
+
+    topCone.position.set(arrowX, height - headLen * 0.5, 0);
+    topCone.scale.set(headRadius / 0.35, headLen / 0.8, headRadius / 0.35);
+
+    bottomCone.position.set(arrowX, headLen * 0.5, 0);
+    bottomCone.scale.set(headRadius / 0.35, headLen / 0.8, headRadius / 0.35);
+
+    topTick.position.set(arrowX, height, 0);
+    topTick.scale.set(Math.max(0.7, sceneScale * 0.8), 1, 1);
+
+    bottomTick.position.set(arrowX, 0, 0);
+    bottomTick.scale.set(Math.max(0.7, sceneScale * 0.8), 1, 1);
+  }
+
+  function getLabelPosition(height, sceneScale = 1) {
+    const baseRad = Math.max(0.35, Math.min(sceneScale * 0.7, 2.5));
+    const arrowX = -baseRad - Math.max(1.0, sceneScale * 1.2);
+    return new THREE.Vector3(arrowX - Math.max(0.8, sceneScale * 0.8), height * 0.5, 0);
+  }
+
+  function setColor(newCol) {
+    mat.color.set(newCol);
+    lineMat.color.set(newCol);
+  }
+
+  return { group, update, getLabelPosition, setColor };
 }
 
 // ─── Ground plane & contained platform ─────────────────────────────────────────

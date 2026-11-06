@@ -21,6 +21,7 @@ import {
   createTrajectoryDots,
   createProjectileMesh,
   createLaunchPointMesh,
+  createLaunchHeightIndicator,
   createGroundPlane,
   createPhysicsAxes,
   createVectorArrow,
@@ -151,12 +152,13 @@ export function createThreeRenderer(mountEl) {
   const predictedDots = createTrajectoryDots(initialColors.trajectoryPredict, 0.65);
   scene.add(activeDots.points, predictedDots.points);
 
-  // ── Projectile & launch point ──────────────────────────────────────────────
+  // ── Projectile & launch point & height indicator ────────────────────────────
   const { mesh: projectileMesh, setPosition: setProjectilePos, setColor: setProjectileColor } = createProjectileMesh();
   setProjectileColor(initialColors.projectile);
   const { mesh: launchPointMesh, setColor: setLaunchPointColor } = createLaunchPointMesh();
   setLaunchPointColor(initialColors.launchPoint);
-  scene.add(projectileMesh, launchPointMesh);
+  const heightIndicator = createLaunchHeightIndicator(initialColors.heightIndicator || initialColors.velocity);
+  scene.add(projectileMesh, launchPointMesh, heightIndicator.group);
 
   // ── Vector arrows ──────────────────────────────────────────────────────────
   const velocityArrow = createVectorArrow(initialColors.velocity);
@@ -176,6 +178,7 @@ export function createThreeRenderer(mountEl) {
   const vxLabel = makeLabel('v<sub>x</sub>', 'vector-label--vx');
   const vyLabel = makeLabel('v<sub>y</sub>', 'vector-label--vy');
   const gLabel = makeLabel('<i>g</i>', 'vector-label--g');
+  const heightLabel = makeLabel('<i>h</i>', 'vector-label--height');
 
   // ── Raycaster (for pointer interaction) ────────────────────────────────────
   const raycaster = new THREE.Raycaster();
@@ -244,8 +247,8 @@ export function createThreeRenderer(mountEl) {
       if (p.yPosition < minY) minY = p.yPosition;
       if (p.yPosition > maxY) maxY = p.yPosition;
     }
-    // Include origin (launch point is always 0,0)
-    minX = Math.min(minX, 0);
+    // Include origin and space for launch height indicator on the left
+    minX = Math.min(minX, -Math.max(2.0, (maxX - Math.min(minX, 0)) * 0.05));
     minY = Math.min(minY, 0);
     maxX = Math.max(maxX, 1);
     maxY = Math.max(maxY, 1);
@@ -474,6 +477,35 @@ export function createThreeRenderer(mountEl) {
       activeDots.setVisible(false);
     }
 
+    // ── Launch point & height indicator ─────────────────────────────────────
+    const launchHeight = Number(state.parameters?.launchHeight ?? 0);
+    launchPointMesh.position.set(0, launchHeight, 0);
+
+    if (launchHeight > 0.01) {
+      const traj = state.activeTrajectory.length > 0 ? state.activeTrajectory : state.predictedTrajectory;
+      let maxX = 10;
+      let maxY = launchHeight;
+      if (traj && traj.length > 0) {
+        for (const p of traj) {
+          if (p.xPosition > maxX) maxX = p.xPosition;
+          if (p.yPosition > maxY) maxY = p.yPosition;
+        }
+      }
+      const bboxDiagonal = Math.sqrt(maxX * maxX + maxY * maxY);
+      const sceneScale = Math.max(0.25, bboxDiagonal / 100);
+
+      heightIndicator.update(launchHeight, sceneScale);
+      const lblPos = heightIndicator.getLabelPosition(launchHeight, sceneScale);
+      heightLabel.position.copy(lblPos);
+      heightLabel.visible = true;
+      if (heightLabel.userData._valueEl) {
+        heightLabel.userData._valueEl.textContent = `${launchHeight.toFixed(2)} m`;
+      }
+    } else {
+      heightIndicator.update(0);
+      heightLabel.visible = false;
+    }
+
     // ── Projectile ────────────────────────────────────────────────────────────
     if (state.currentPoint) {
       const pt = state.currentPoint;
@@ -637,6 +669,7 @@ export function createThreeRenderer(mountEl) {
     predictedDots.setColor(colors.trajectoryPredict);
     setProjectileColor(colors.projectile);
     setLaunchPointColor(colors.launchPoint);
+    heightIndicator.setColor(colors.heightIndicator || colors.velocity);
     setGroundColors(colors.ground, colors.groundLine);
     setAxesColors(colors.axisX, colors.axisY, colors.axisZ);
     velocityArrow.setColor(colors.velocity);

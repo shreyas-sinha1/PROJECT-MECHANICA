@@ -35,6 +35,7 @@ export function loadSimulationSpec(engine, rawSpec, options = {}) {
     initialVelocity: parameters.initialVelocity,
     launchAngleDegrees: parameters.launchAngleDegrees,
     gravity: parameters.gravity,
+    launchHeight: parameters.launchHeight ?? 0,
   });
 
   if (autoLaunch) {

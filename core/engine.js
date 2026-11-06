@@ -16,7 +16,8 @@ export function createEngine(scene) {
   const defaultParameters = {
     initialVelocity: initialProjectile.velocity ?? 42,
     launchAngleDegrees: initialProjectile.angle ?? 42,
-    gravity: initialProjectile.gravity ?? 9.81
+    gravity: initialProjectile.gravity ?? 9.81,
+    launchHeight: initialProjectile.launchHeight ?? 0
   };
 
   const state = createSimulationState(defaultParameters);
@@ -105,6 +106,7 @@ export function createEngine(scene) {
     state.parameters.initialVelocity = defaultParameters.initialVelocity;
     state.parameters.launchAngleDegrees = defaultParameters.launchAngleDegrees;
     state.parameters.gravity = defaultParameters.gravity;
+    state.parameters.launchHeight = defaultParameters.launchHeight;
     recalculatePredictedMotion();
     const motion = computeProjectileMotion(state.parameters, TIME_STEP);
     state.currentPoint = motion.initialPoint;
@@ -124,6 +126,9 @@ export function createEngine(scene) {
     }
     if (newParams.gravity !== undefined) {
       state.parameters.gravity = Number(newParams.gravity);
+    }
+    if (newParams.launchHeight !== undefined) {
+      state.parameters.launchHeight = Number(newParams.launchHeight);
     }
     recalculatePredictedMotion();
     const motion = computeProjectileMotion(state.parameters, TIME_STEP);

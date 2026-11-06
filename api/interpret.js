@@ -87,8 +87,20 @@ export default async function handler(req, res) {
 
   try {
     const prompt = payload?.prompt;
-    const result = await interpretPhysicsQuestion(prompt);
-    res.statusCode = result.success ? 200 : (result.code === "MISSING_API_KEY" ? 503 : 400);
+    const provider = process.env.AI_PROVIDER || "tinfoil";
+    const result = await interpretPhysicsQuestion(prompt, { provider });
+
+    let statusCode = 400;
+    if (result.success) {
+      statusCode = 200;
+    } else if (result.code === "MISSING_API_KEY" || result.code === "SERVICE_UNAVAILABLE") {
+      statusCode = 503;
+    } else if (result.code === "RATE_LIMITED") {
+      statusCode = 429;
+    } else if (result.code === "INVALID_API_KEY" || result.code === "UNAUTHORIZED") {
+      statusCode = 401;
+    }
+    res.statusCode = statusCode;
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(result));
   } catch (err) {
